@@ -39,6 +39,8 @@ app.message(async ({ message, say, client }) => {
 
   const messageEvent = message as GenericMessageEvent;
   
+  if (!messageEvent.text || !messageEvent.user) return;
+  
   // Try to process as a recognition
   const recognition = await recognitionService.processRecognition(messageEvent.text, messageEvent.user);
   
@@ -289,7 +291,17 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
   await ack();
   
   const userId = body.user.id;
-  const rewardName = view.state.values.reward_select.reward_selection.selected_option.value;
+  const selectedOption = view.state.values.reward_select.reward_selection.selected_option;
+  
+  if (!selectedOption) {
+    await client.chat.postMessage({
+      channel: userId,
+      text: "No reward was selected. Please try again.",
+    });
+    return;
+  }
+  
+  const rewardName = selectedOption.value;
   
   const result = await commandService.redeemReward(userId, rewardName);
   

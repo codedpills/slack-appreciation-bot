@@ -15,8 +15,12 @@ describe('Recognition Flow Acceptance Tests', () => {
     // Setup mock filesystem
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
-    (fs.promises.writeFile as jest.Mock) = jest.fn().mockResolvedValue(undefined);
     
+    // Mock fs.promises
+    (fs.promises as any) = {
+      writeFile: jest.fn().mockResolvedValue(undefined),
+    };
+  
     // Create test services
     dataService = new DataService(testDataPath);
     recognitionService = new RecognitionService(dataService);
@@ -118,6 +122,13 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
   
   test('should properly parse message for recognition', () => {
+    // Mock getConfig to include all the values we're testing
+    jest.spyOn(dataService, 'getConfig').mockReturnValue({
+      dailyLimit: 5,
+      values: ['teamwork', 'innovation', 'creativity'],
+      rewards: []
+    });
+    
     const validFormats = [
       '<@USER123> +++ helped me debug #innovation',
       '<@USER123>+++great work#teamwork',

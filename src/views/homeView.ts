@@ -95,19 +95,19 @@ export const buildHomeView = (
  */
 export const buildRedeemModal = (rewards: Array<{ name: string; cost: number }>, userPoints: number) => {
   return {
-    type: 'modal',
+    type: 'modal' as const,
     title: {
-      type: 'plain_text',
+      type: 'plain_text' as const,
       text: 'Redeem Rewards',
       emoji: true
     },
     submit: {
-      type: 'plain_text',
+      type: 'plain_text' as const,  
       text: 'Redeem',
       emoji: true
     },
     close: {
-      type: 'plain_text',
+      type: 'plain_text' as const,
       text: 'Cancel',
       emoji: true
     },
@@ -128,13 +128,13 @@ export const buildRedeemModal = (rewards: Array<{ name: string; cost: number }>,
         element: {
           type: 'static_select',
           placeholder: {
-            type: 'plain_text',
+            type: 'plain_text' as const,
             text: 'Select a reward',
             emoji: true
           },
           options: rewards.map(reward => ({
             text: {
-              type: 'plain_text',
+              type: 'plain_text' as const,
               text: `${reward.name} (${reward.cost} points)`,
               emoji: true
             },
@@ -143,7 +143,7 @@ export const buildRedeemModal = (rewards: Array<{ name: string; cost: number }>,
           action_id: 'reward_selection'
         },
         label: {
-          type: 'plain_text',
+          type: 'plain_text' as const,
           text: 'Available Rewards',
           emoji: true
         }
