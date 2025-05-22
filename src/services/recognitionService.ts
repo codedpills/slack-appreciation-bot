@@ -6,7 +6,7 @@ import { Recognition } from '../types';
  */
 export class RecognitionService {
   private dataService: DataService;
-  
+
   constructor(dataService: DataService) {
     this.dataService = dataService;
   }
@@ -16,32 +16,117 @@ export class RecognitionService {
    * Returns null if no valid recognition was found
    */
   parseRecognition(text: string, giverId: string): Recognition | null {
-    // Parse recognition using regex
-    const regex = /<@([A-Z0-9]+)>\s*\+{3}(.*?)#(\w+)/i;
+    const regex = /<@([A-Z0-9]+)>\s*(\+{1,})(.*?)#(\w+)/i;
     const match = text.match(regex);
-    
+
     if (!match) return null;
-    
-    const [, receiverId, reasonText, valueTag] = match;
+
+    const [, receiverId, plusSymbols, reasonText, valueTag] = match;
     const reason = reasonText.trim();
     const value = valueTag.toLowerCase().trim();
-    
-    // Don't allow self-recognition
+
     if (receiverId === giverId) return null;
-    
-    // Verify the value is valid
+
     const config = this.dataService.getConfig();
-    if (!config.values.includes(value)) return null;
-    
-    // Create recognition object
+    if (!config.values.includes(value)) {
+      return null;
+    }
+
+    const points = plusSymbols.length;
+
     return {
       giver: giverId,
       receiver: receiverId,
       reason,
       value,
-      points: 3, // Fixed point value as per PRD
+      points,
       timestamp: Date.now()
     };
+  }
+
+  parseRecognitions(text: string, giverId: string): Recognition[] {
+    const regex = /(?:<@([A-Z0-9]+)>\s*)+(\+{1,})(.*?)#(\w+)/gi; // match multiple mentions
+    const matches = [...text.matchAll(regex)];
+
+    const recognitions: Recognition[] = [];
+
+    for (const match of matches) {
+      const [, , plusSymbols, reasonText, valueTag] = match;
+      const mentionsRegex = /<@([A-Z0-9]+)>/g; // extract individual mentions
+      const mentionedUsers = [...match[0].matchAll(mentionsRegex)].map(m => m[1]);
+
+      for (const receiverId of mentionedUsers) {
+        if (receiverId === giverId) continue;
+
+        const reason = reasonText.trim();
+        const value = valueTag.toLowerCase().trim();
+
+        const config = this.dataService.getConfig();
+        if (!config.values.includes(value)) continue;
+
+        const points = plusSymbols.length;
+
+        recognitions.push({
+          giver: giverId,
+          receiver: receiverId,
+          reason,
+          value,
+          points,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    return recognitions;
+  }
+
+  async resolveGroupMembers(client: any, groupId: string): Promise<string[]> {
+    try {
+      const result = await client.usergroups.users.list({ usergroup: groupId });
+      if (!result.ok || !result.users) {
+        console.error('Failed to fetch group members:', result.error);
+        return [];
+      }
+      return result.users;
+    } catch (error) {
+      console.error('Error resolving group members:', error);
+      return [];
+    }
+  }
+
+  async parseRecognitionsWithGroups(text: string, giverId: string, client: any): Promise<Recognition[]> {
+    const regex = /(?:<@([A-Z0-9]+)>|<!subteam\^([A-Z0-9]+)>)\s*(\+{1,})(.*?)#(\w+)/gi; // match multiple mentions and groups
+    const matches = [...text.matchAll(regex)];
+
+    const recognitions: Recognition[] = [];
+
+    for (const match of matches) {
+      const [, userId, groupId, plusSymbols, reasonText, valueTag] = match;
+      const mentionedUsers = userId ? [userId] : groupId ? await this.resolveGroupMembers(client, groupId) : [];
+
+      for (const receiverId of mentionedUsers) {
+        if (receiverId === giverId) continue;
+
+        const reason = reasonText.trim();
+        const value = valueTag.toLowerCase().trim();
+
+        const config = this.dataService.getConfig();
+        if (!config.values.includes(value)) continue;
+
+        const points = plusSymbols.length;
+
+        recognitions.push({
+          giver: giverId,
+          receiver: receiverId,
+          reason,
+          value,
+          points,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    return recognitions;
   }
 
   /**
@@ -49,19 +134,32 @@ export class RecognitionService {
    * Returns whether the recognition was processed successfully
    */
   async processRecognition(text: string, giverId: string): Promise<Recognition | null> {
-    // Parse the recognition
     const recognition = this.parseRecognition(text, giverId);
     if (!recognition) return null;
-    
-    // Check if giver has enough daily points
+
     if (!this.dataService.canGivePoints(giverId, recognition.points)) {
       return null;
     }
-    
-    // Record the recognition
+
     await this.dataService.recordRecognition(recognition);
-    
+
     return recognition;
+  }
+
+  async processRecognitions(text: string, giverId: string): Promise<Recognition[]> {
+    const recognitions = this.parseRecognitions(text, giverId);
+    const validRecognitions: Recognition[] = [];
+
+    for (const recognition of recognitions) {
+      if (!this.dataService.canGivePoints(giverId, recognition.points)) {
+        continue;
+      }
+
+      await this.dataService.recordRecognition(recognition);
+      validRecognitions.push(recognition);
+    }
+
+    return validRecognitions;
   }
 }
 

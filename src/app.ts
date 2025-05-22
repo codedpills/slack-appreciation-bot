@@ -5,47 +5,98 @@ import path from 'path';
 import { createDataService } from './services/dataService';
 import { createRecognitionService } from './services/recognitionService';
 import { createCommandService } from './services/commandService';
-import { 
+import {
   buildHomeView,
   buildRedeemModal,
   buildRedemptionConfirmation,
   buildAdminRedemptionNotification
 } from './views/homeView';
 
-// Load environment variables
 dotenv.config();
 
-// Initialize services
 const dataFilePath = process.env.DATA_FILE_PATH || path.join(__dirname, '../data/store.json');
-const adminUsers = (process.env.ADMIN_USERS || '').split(',').filter(id => id.trim() !== '');
 
 const dataService = createDataService(dataFilePath);
 const recognitionService = createRecognitionService(dataService);
-const commandService = createCommandService(dataService, adminUsers);
 
-// Initialize Slack app
+let commandService = createCommandService(dataService, []);
+
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: true,
+  socketMode: false,
   appToken: process.env.SLACK_APP_TOKEN,
-  logLevel: LogLevel.INFO
+  logLevel: LogLevel.INFO,
 });
 
-// Listen for message events to detect recognitions
+app.use(async ({ payload, next }) => {
+  console.log("🚀 ~ Incoming event payload:", payload);
+  await next();
+});
+
+async function getAdminUsers(client: any): Promise<string[]> {
+  try {
+    const result = await client.users.list();
+    if (!result.ok || !result.members) {
+      console.error('Failed to fetch users:', result.error);
+      return [];
+    }
+
+    const adminUsers = result.members
+      .filter((user: any) => (user.is_admin || user.is_owner || user.is_primary_owner) && !user.deleted)
+      .map((user: any) => user.id);
+
+    return [...adminUsers, "U08NCRZBRN0"]; // TODO: Remove hardcoded admin user ID
+  } catch (error) {
+    console.error('Error fetching admin users:', error);
+    return [];
+  }
+}
+
+async function joinAllChannels(client: any) {
+  try {
+    let cursor: string | undefined;
+    do {
+      const result = await client.conversations.list({
+        exclude_archived: true,
+        limit: 1000,
+        cursor,
+      });
+
+      if (!result.ok || !result.channels) {
+        console.error("Failed to fetch channels:", result.error);
+        return;
+      }
+
+      for (const channel of result.channels) {
+        if (channel.is_member) {
+          continue;
+        }
+
+        try {
+          await client.conversations.join({ channel: channel.id });
+        } catch (error) {
+          console.error(`Failed to join channel ${channel.name}:`, error);
+        }
+      }
+
+      cursor = result.response_metadata?.next_cursor;
+    } while (cursor);
+  } catch (error) {
+    console.error("Error in joinAllChannels:", error);
+  }
+}
+
 app.message(async ({ message, say, client }) => {
-  // Type guard to ensure message has text property and user property
   if (!('text' in message) || !('user' in message) || message.subtype === 'bot_message') return;
 
   const messageEvent = message as GenericMessageEvent;
-  
+
   if (!messageEvent.text || !messageEvent.user) return;
-  
-  // Try to process as a recognition
-  const recognition = await recognitionService.processRecognition(messageEvent.text, messageEvent.user);
-  
-  if (recognition) {
-    // Announce the recognition
+
+  const recognitions = await recognitionService.parseRecognitionsWithGroups(messageEvent.text, messageEvent.user, client);
+
+  for (const recognition of recognitions) {
     await say({
       text: `:tada: <@${recognition.receiver}> +${recognition.points} pts for *${recognition.value}*!`,
       blocks: [
@@ -67,22 +118,22 @@ app.message(async ({ message, say, client }) => {
         }
       ]
     });
-    
-    // Update the App Home for both giver and receiver
+  }
+
+  if (recognitions.length > 0) {
     try {
-      await publishHomeView(client, recognition.receiver);
-      await publishHomeView(client, recognition.giver);
+      await publishHomeView(client, recognitions[0].receiver);
+      await publishHomeView(client, recognitions[0].giver);
     } catch (error) {
       console.error('Error publishing home view:', error);
     }
   }
 });
 
-// Publish App Home with leaderboard
 async function publishHomeView(client: any, userId: string) {
   const users = dataService.getAllUsers();
   const config = dataService.getConfig();
-  
+
   try {
     await client.views.publish({
       user_id: userId,
@@ -93,54 +144,51 @@ async function publishHomeView(client: any, userId: string) {
   }
 }
 
-// Listen for app_home_opened events
 app.event('app_home_opened', async ({ event, client }) => {
   await publishHomeView(client, event.user);
 });
 
-// Handle /points config command
 app.command('/points', async ({ command, ack, respond, client }) => {
   await ack();
-  
+
   const { text, user_id } = command;
   const args = text.trim().split(/\s+/);
   const subCommand = args[0]?.toLowerCase();
-  
+
   let result;
-  
+
   switch (subCommand) {
     case 'config':
       const configCommand = args[1]?.toLowerCase();
-      
+
       switch (configCommand) {
         case 'daily_limit':
           result = await commandService.setDailyLimit(user_id, args[2]);
           break;
-          
+
         case 'add_value':
           result = await commandService.addValue(user_id, args[2]);
           break;
-          
+
         case 'remove_value':
           result = await commandService.removeValue(user_id, args[2]);
           break;
-          
+
         default:
-          result = { 
-            success: false, 
-            message: 'Invalid config command. Available commands: daily_limit, add_value, remove_value' 
+          result = {
+            success: false,
+            message: 'Invalid config command. Available commands: daily_limit, add_value, remove_value'
           };
       }
       break;
-      
+
     case 'reward':
       const rewardCommand = args[1]?.toLowerCase();
-      
+
       switch (rewardCommand) {
         case 'add':
-          // Handle quoted reward name
           const match = text.match(/reward\s+add\s+"([^"]+)"\s+(\d+)/i);
-          
+
           if (match) {
             result = await commandService.addReward(user_id, match[1], match[2]);
           } else {
@@ -150,11 +198,10 @@ app.command('/points', async ({ command, ack, respond, client }) => {
             };
           }
           break;
-          
+
         case 'remove':
-          // Handle quoted reward name
           const removeMatch = text.match(/reward\s+remove\s+"([^"]+)"/i);
-          
+
           if (removeMatch) {
             result = await commandService.removeReward(user_id, removeMatch[1]);
           } else {
@@ -164,42 +211,39 @@ app.command('/points', async ({ command, ack, respond, client }) => {
             };
           }
           break;
-          
+
         default:
-          result = { 
-            success: false, 
-            message: 'Invalid reward command. Available commands: add, remove' 
+          result = {
+            success: false,
+            message: 'Invalid reward command. Available commands: add, remove'
           };
       }
       break;
-      
+
     case 'reset':
       if (args.length < 2) {
-        result = { 
-          success: false, 
-          message: 'Please specify a user to reset. Example: /points reset @user' 
+        result = {
+          success: false,
+          message: 'Please specify a user to reset. Example: /points reset @user'
         };
       } else {
         result = await commandService.resetPoints(user_id, args[1]);
       }
       break;
-      
+
     default:
-      result = { 
-        success: false, 
-        message: 'Invalid command. Available commands: config, reward, reset' 
+      result = {
+        success: false,
+        message: 'Invalid command. Available commands: config, reward, reset'
       };
   }
-  
-  // Respond with the result
+
   await respond({
     text: result.message,
     response_type: 'ephemeral'
   });
-  
-  // If the command was successful, update the home views
+
   if (result.success) {
-    // Get all users and update their home views
     const users = dataService.getAllUsers();
     for (const userId of Object.keys(users)) {
       try {
@@ -211,17 +255,17 @@ app.command('/points', async ({ command, ack, respond, client }) => {
   }
 });
 
-// Handle /redeem command
 app.command('/redeem', async ({ command, ack, respond, client }) => {
   await ack();
-  
+
   const { text, user_id } = command;
-  
-  // If no reward name provided, show the modal with available rewards
+
+  const adminUsers = await getAdminUsers(client);
+
   if (!text.trim()) {
     const rewards = dataService.getRewards();
     const userRecord = dataService.getUserRecord(user_id);
-    
+
     try {
       await client.views.open({
         trigger_id: command.trigger_id,
@@ -236,24 +280,20 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
     }
     return;
   }
-  
-  // Handle direct redemption with reward name
-  // Extract reward name from quotes if present
+
   const match = text.match(/"([^"]+)"/);
   const rewardName = match ? match[1] : text.trim();
-  
+
   const result = await commandService.redeemReward(user_id, rewardName);
-  
+
   await respond({
     text: result.message,
     response_type: 'ephemeral'
   });
-  
-  // If redemption was successful, notify admins and update home view
+
   if (result.success && result.data) {
     const { reward, user } = result.data;
-    
-    // Send confirmation message to user
+
     try {
       await client.chat.postMessage({
         channel: user_id,
@@ -267,8 +307,7 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
     } catch (error) {
       console.error('Error sending redemption confirmation:', error);
     }
-    
-    // Notify admins
+
     for (const adminId of adminUsers) {
       try {
         await client.chat.postMessage({
@@ -280,19 +319,17 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
         console.error(`Error notifying admin ${adminId}:`, error);
       }
     }
-    
-    // Update user's home view
+
     await publishHomeView(client, user_id);
   }
 });
 
-// Handle redemption modal submission
 app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
   await ack();
-  
+
   const userId = body.user.id;
   const selectedOption = view.state.values.reward_select.reward_selection.selected_option;
-  
+
   if (!selectedOption) {
     await client.chat.postMessage({
       channel: userId,
@@ -300,15 +337,14 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
     });
     return;
   }
-  
+
   const rewardName = selectedOption.value;
-  
+
   const result = await commandService.redeemReward(userId, rewardName);
-  
+
   if (result.success && result.data) {
     const { reward, user } = result.data;
-    
-    // Send confirmation message to user
+
     try {
       await client.chat.postMessage({
         channel: userId,
@@ -322,8 +358,8 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
     } catch (error) {
       console.error('Error sending redemption confirmation:', error);
     }
-    
-    // Notify admins
+
+    const adminUsers = await getAdminUsers(client);
     for (const adminId of adminUsers) {
       try {
         await client.chat.postMessage({
@@ -335,11 +371,9 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
         console.error(`Error notifying admin ${adminId}:`, error);
       }
     }
-    
-    // Update user's home view
+
     await publishHomeView(client, userId);
   } else {
-    // Send error message
     try {
       await client.chat.postMessage({
         channel: userId,
@@ -351,10 +385,22 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
   }
 });
 
-// Start the app
+app.event('url_verification', async ({ event, ack }) => {
+  if (event && 'challenge' in event) {
+    await (ack as any)({ challenge: event.challenge });
+  } else {
+    console.error('URL verification event missing challenge property');
+    await (ack as any)();
+  }
+});
+
 (async () => {
+  const adminUsers = await getAdminUsers(app.client);
+  commandService = createCommandService(dataService, adminUsers);
+
+  await joinAllChannels(app.client);
+
   const port = parseInt(process.env.PORT || '3000', 10);
-  
   await app.start(port);
   console.log(`⚡️ Appreciation bot is running on port ${port}`);
 })();

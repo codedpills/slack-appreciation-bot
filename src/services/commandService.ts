@@ -1,9 +1,6 @@
 import { DataService } from './dataService';
 import { CommandResult } from '../types';
 
-/**
- * Service for handling admin commands
- */
 export class CommandService {
   private dataService: DataService;
   private adminUsers: string[];
@@ -13,16 +10,10 @@ export class CommandService {
     this.adminUsers = adminUsers;
   }
 
-  /**
-   * Check if user is an admin
-   */
   isAdmin(userId: string): boolean {
     return this.adminUsers.includes(userId);
   }
 
-  /**
-   * Set daily point limit
-   */
   async setDailyLimit(userId: string, limitStr: string): Promise<CommandResult> {
     if (!this.isAdmin(userId)) {
       return { 
@@ -47,9 +38,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Add a company value
-   */
   async addValue(userId: string, value: string): Promise<CommandResult> {
     if (!this.isAdmin(userId)) {
       return { 
@@ -74,9 +62,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Remove a company value
-   */
   async removeValue(userId: string, value: string): Promise<CommandResult> {
     if (!this.isAdmin(userId)) {
       return { 
@@ -101,9 +86,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Add a reward
-   */
   async addReward(userId: string, name: string, costStr: string): Promise<CommandResult> {
     if (!this.isAdmin(userId)) {
       return { 
@@ -135,9 +117,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Remove a reward
-   */
   async removeReward(userId: string, name: string): Promise<CommandResult> {
     if (!this.isAdmin(userId)) {
       return { 
@@ -161,9 +140,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Reset a user's points
-   */
   async resetPoints(adminId: string, userId: string): Promise<CommandResult> {
     if (!this.isAdmin(adminId)) {
       return { 
@@ -172,7 +148,6 @@ export class CommandService {
       };
     }
     
-    // Clean up user ID format (remove <@ and >)
     const cleanUserId = userId.replace(/[<@>]/g, '');
     
     await this.dataService.resetUserPoints(cleanUserId);
@@ -183,9 +158,6 @@ export class CommandService {
     };
   }
 
-  /**
-   * Redeem a reward
-   */
   async redeemReward(userId: string, rewardName: string): Promise<CommandResult> {
     const reward = this.dataService.getReward(rewardName);
     
