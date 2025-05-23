@@ -46,7 +46,7 @@ async function getAdminUsers(client: any): Promise<string[]> {
       .filter((user: any) => (user.is_admin || user.is_owner || user.is_primary_owner) && !user.deleted)
       .map((user: any) => user.id);
 
-    return [...adminUsers, "U08NCRZBRN0"]; // TODO: Remove hardcoded admin user ID
+    return adminUsers;
   } catch (error) {
     console.error('Error fetching admin users:', error);
     return [];
@@ -133,6 +133,18 @@ app.message(async ({ message, say, client }) => {
 async function publishHomeView(client: any, userId: string) {
   const users = dataService.getAllUsers();
   const config = dataService.getConfig();
+
+  // Validate userId format (Slack user IDs start with 'U' and are alphanumeric)
+  if (!/^U[A-Z0-9]+$/.test(userId)) {
+    console.error(`Invalid user_id format: ${userId}`);
+    return;
+  }
+
+  // Validate userId exists in the database
+  if (!users[userId]) {
+    console.error(`User ID not found in database: ${userId}`);
+    return;
+  }
 
   try {
     await client.views.publish({
@@ -227,7 +239,7 @@ app.command('/points', async ({ command, ack, respond, client }) => {
           message: 'Please specify a user to reset. Example: /points reset @user'
         };
       } else {
-        result = await commandService.resetPoints(user_id, args[1]);
+        result = await commandService.resetPoints(user_id, args[1], client);
       }
       break;
 
@@ -397,6 +409,9 @@ app.event('url_verification', async ({ event, ack }) => {
 (async () => {
   const adminUsers = await getAdminUsers(app.client);
   commandService = createCommandService(dataService, adminUsers);
+
+  // Normalize user IDs in the database
+  await dataService.normalizeUserIds(app.client);
 
   await joinAllChannels(app.client);
 

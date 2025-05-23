@@ -18,8 +18,21 @@ describe('Admin Commands Acceptance Tests', () => {
   const testDataPath = '/tmp/test-data.json';
   const adminUserId = 'ADMIN123';
   const regularUserId = 'USER456';
+  let mockClient: any;
   
   beforeEach(() => {
+    mockClient = {
+      users: {
+        list: jest.fn().mockResolvedValue({
+          ok: true,
+          members: [
+            { id: 'USER789', name: 'USER789' },
+            { id: 'USER456', name: 'regularuser' }
+          ]
+        })
+      }
+    };
+
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     (fs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
@@ -89,15 +102,62 @@ describe('Admin Commands Acceptance Tests', () => {
     const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
       .mockImplementation(async () => {});
     
-    const adminResult = await commandService.resetPoints(adminUserId, 'USER789');
+    const adminResult = await commandService.resetPoints(adminUserId, 'USER789', mockClient);
     expect(adminResult.success).toBe(true);
     expect(resetSpy).toHaveBeenCalledWith('USER789');
     
-    const userResult = await commandService.resetPoints(regularUserId, 'USER789');
+    const userResult = await commandService.resetPoints(regularUserId, 'USER789', mockClient);
     expect(userResult.success).toBe(false);
     
-    const formattedResult = await commandService.resetPoints(adminUserId, '<@USER789>');
+    const formattedResult = await commandService.resetPoints(adminUserId, '<@USER789>', mockClient);
     expect(formattedResult.success).toBe(true);
     expect(resetSpy).toHaveBeenCalledWith('USER789');
+  });
+  
+  test('should reset user points and persist changes', async () => {
+    const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
+      .mockImplementation(async (userId) => {
+        const userRecord = dataService.getUserRecord(userId);
+        userRecord.total = 0;
+        userRecord.byValue = {};
+        await dataService.saveData();
+      });
+
+    jest.spyOn(dataService, 'getUserRecord').mockReturnValue({
+      total: 0,
+      byValue: {},
+      dailyGiven: 0,
+      lastReset: '2025-05-23'
+    });
+
+    const adminResult = await commandService.resetPoints(adminUserId, 'USER789', mockClient);
+    expect(adminResult.success).toBe(true);
+    expect(adminResult.message).toContain('Points for USER789 have been reset.');
+    expect(resetSpy).toHaveBeenCalledWith('USER789');
+
+    const updatedUser = dataService.getUserRecord('USER789');
+    expect(updatedUser.total).toBe(0);
+    expect(updatedUser.byValue).toEqual({});
+  });
+  
+  test('should resolve usernames to user IDs and reset points', async () => {
+    const resolveUserIdSpy = jest.spyOn(commandService, 'resolveUserId')
+      .mockResolvedValue('USER789');
+
+    const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
+      .mockImplementation(async () => {});
+
+    const result = await commandService.resetPoints(adminUserId, '@username', {} as any);
+    expect(result.success).toBe(true);
+    expect(resolveUserIdSpy).toHaveBeenCalledWith(expect.anything(), '@username');
+    expect(resetSpy).toHaveBeenCalledWith('USER789');
+  });
+
+  test('should handle invalid usernames gracefully', async () => {
+    jest.spyOn(commandService, 'resolveUserId').mockResolvedValue(null);
+
+    const result = await commandService.resetPoints(adminUserId, '@invaliduser', {} as any);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Invalid user identifier');
   });
 });

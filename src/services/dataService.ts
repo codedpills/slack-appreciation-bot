@@ -179,9 +179,10 @@ export class DataService {
    * Reset user's points
    */
   async resetUserPoints(userId: string): Promise<void> {
-    if (this.state.users[userId]) {
-      this.state.users[userId].total = 0;
-      this.state.users[userId].byValue = {};
+    const userRecord = this.getUserRecord(userId);
+    if (userRecord) {
+      userRecord.total = 0;
+      userRecord.byValue = {};
       await this.saveState();
     }
   }
@@ -264,6 +265,43 @@ export class DataService {
     await this.saveState();
     
     return true;
+  }
+
+  /**
+   * Save data to disk
+   */
+  async saveData(): Promise<void> {
+    await this.saveState();
+  }
+
+  /**
+   * Normalize user IDs based on Slack API
+   */
+  async normalizeUserIds(client: any): Promise<void> {
+    const users = this.getAllUsers();
+    const result = await client.users.list();
+
+    if (!result.ok || !result.members) {
+      console.error('Failed to fetch users from Slack API:', result.error);
+      return;
+    }
+
+    const slackUsers = result.members.reduce((map: Record<string, string>, member: any) => {
+      map[member.name] = member.id;
+      return map;
+    }, {});
+
+    for (const [key, value] of Object.entries(users)) {
+      if (!/^U[A-Z0-9]+$/.test(key)) {
+        const resolvedId = slackUsers[key] || slackUsers[key.replace('@', '')];
+        if (resolvedId) {
+          this.state.users[resolvedId] = value;
+          delete this.state.users[key];
+        }
+      }
+    }
+
+    await this.saveState();
   }
 }
 

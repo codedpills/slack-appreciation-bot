@@ -140,22 +140,46 @@ export class CommandService {
     };
   }
 
-  async resetPoints(adminId: string, userId: string): Promise<CommandResult> {
-    if (!this.isAdmin(adminId)) {
-      return { 
-        success: false, 
-        message: 'Only admins can reset user points'
-      };
+  async resolveUserId(client: any, username: string): Promise<string | null> {
+    try {
+      const result = await client.users.list();
+      if (!result.ok || !result.members) {
+        console.error('Failed to fetch users:', result.error);
+        return null;
+      }
+
+      const user = result.members.find((member: any) => member.name === username.replace('@', ''));
+      return user ? user.id : null;
+    } catch (error) {
+      console.error('Error resolving user ID:', error);
+      return null;
     }
+  }
+
+  async resetPoints(requesterId: string, target: string, client: any): Promise<{ success: boolean; message: string }> {
+    if (!this.adminUsers.includes(requesterId)) {
+      return { success: false, message: 'Only admins can reset points.' };
+    }
+
+    const match = target.match(/^<@([A-Z0-9]+)>$/);
+    let userId = match ? match[1] : null;
+
+    if (!userId) {
+      userId = await this.resolveUserId(client, target);
+      if (!userId || !/^U[A-Z0-9]+$/.test(userId)) {
+        console.error(`Invalid user identifier provided: ${target}`);
+        return { success: false, message: `Invalid user identifier: ${target}` };
+      }
+    }
+
+    const userRecord = this.dataService.getUserRecord(userId);
     
-    const cleanUserId = userId.replace(/[<@>]/g, '');
-    
-    await this.dataService.resetUserPoints(cleanUserId);
-    
-    return {
-      success: true,
-      message: `Reset points for <@${cleanUserId}>`
-    };
+    if (!userRecord) {
+      return { success: false, message: `User ${target} not found.` };
+    }
+
+    await this.dataService.resetUserPoints(userId);
+    return { success: true, message: `Points for ${target} have been reset.` };
   }
 
   async redeemReward(userId: string, rewardName: string): Promise<CommandResult> {
