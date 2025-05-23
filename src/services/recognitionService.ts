@@ -16,19 +16,24 @@ export class RecognitionService {
    * Returns null if no valid recognition was found
    */
   parseRecognition(text: string, giverId: string): Recognition | null {
-    const regex = /<@([A-Z0-9]+)>\s*(\+{1,})(.*?)#(\w+)/i;
+    // Removed debug logs and redundant comments for tidiness
+    const regex = /<@([A-Z0-9]+)>\s*(\+{1,})\s*(.*?)(?:\s*#(\w+))?$/i;
     const match = text.match(regex);
 
     if (!match) return null;
 
     const [, receiverId, plusSymbols, reasonText, valueTag] = match;
     const reason = reasonText.trim();
-    const value = valueTag.toLowerCase().trim();
+    if (!reason && !valueTag) return null;
+
+    const value = valueTag ? valueTag.toLowerCase().trim() : 'general';
+
+    if (reason.length === 0) return null;
 
     if (receiverId === giverId) return null;
 
     const config = this.dataService.getConfig();
-    if (!config.values.includes(value)) {
+    if (!config.values.includes(value) && value !== 'general') {
       return null;
     }
 
@@ -98,11 +103,21 @@ export class RecognitionService {
     const regex = /(?:<@([A-Z0-9]+)>|<!subteam\^([A-Z0-9]+)>)\s*(\+{1,})(.*?)#(\w+)/gi; // match multiple mentions and groups
     const matches = [...text.matchAll(regex)];
 
+    console.log("🚀 ~ parseRecognitionsWithGroups ~ text:", text);
+    console.log("🚀 ~ parseRecognitionsWithGroups ~ matches:", matches);
+
     const recognitions: Recognition[] = [];
 
     for (const match of matches) {
       const [, userId, groupId, plusSymbols, reasonText, valueTag] = match;
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ userId:", userId);
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ groupId:", groupId);
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ plusSymbols:", plusSymbols);
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ reasonText:", reasonText);
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ valueTag:", valueTag);
+
       const mentionedUsers = userId ? [userId] : groupId ? await this.resolveGroupMembers(client, groupId) : [];
+      console.log("🚀 ~ parseRecognitionsWithGroups ~ mentionedUsers:", mentionedUsers);
 
       for (const receiverId of mentionedUsers) {
         if (receiverId === giverId) continue;

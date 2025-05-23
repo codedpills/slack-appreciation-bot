@@ -1,9 +1,7 @@
 import { RecognitionService } from '../../src/services/recognitionService';
 import { DataService } from '../../src/services/dataService';
 import fs from 'fs';
-import path from 'path';
 
-// Mock the data service
 jest.mock('fs');
 
 describe('Recognition Flow Acceptance Tests', () => {
@@ -12,16 +10,13 @@ describe('Recognition Flow Acceptance Tests', () => {
   const testDataPath = '/tmp/test-data.json';
   
   beforeEach(() => {
-    // Setup mock filesystem
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     
-    // Mock fs.promises
     (fs.promises as any) = {
       writeFile: jest.fn().mockResolvedValue(undefined),
     };
   
-    // Create test services
     dataService = new DataService(testDataPath);
     recognitionService = new RecognitionService(dataService);
   });
@@ -34,7 +29,6 @@ describe('Recognition Flow Acceptance Tests', () => {
     // Mock canGivePoints to always return true for testing
     jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
     
-    // Mock recordRecognition
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
     
@@ -61,7 +55,6 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
   
   test('should validate against stored company values', async () => {
-    // Mock getConfig to return a specific set of values
     jest.spyOn(dataService, 'getConfig').mockReturnValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation'],
@@ -87,10 +80,9 @@ describe('Recognition Flow Acceptance Tests', () => {
   test('should enforce daily limits', async () => {
     // First, mock canGivePoints to return true then false after limit
     const canGivePointsSpy = jest.spyOn(dataService, 'canGivePoints')
-      .mockImplementationOnce(() => true)  // First call returns true
-      .mockImplementationOnce(() => false); // Second call returns false
+      .mockImplementationOnce(() => true)  
+      .mockImplementationOnce(() => false); 
     
-    // Mock recordRecognition
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
     
@@ -105,7 +97,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     // Second recognition should fail due to daily limit
     const secondRecognition = await recognitionService.processRecognition(text, giverId);
     expect(secondRecognition).toBeNull();
-    expect(recordSpy).toHaveBeenCalledTimes(1); // Still just one call
+    expect(recordSpy).toHaveBeenCalledTimes(1); 
     
     // Verify canGivePoints was called with the right parameters
     expect(canGivePointsSpy).toHaveBeenCalledWith(giverId, 3);
@@ -122,7 +114,6 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
   
   test('should properly parse message for recognition', () => {
-    // Mock getConfig to include all the values we're testing
     jest.spyOn(dataService, 'getConfig').mockReturnValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation', 'creativity'],
@@ -132,13 +123,13 @@ describe('Recognition Flow Acceptance Tests', () => {
     const validFormats = [
       '<@USER123> +++ helped me debug #innovation',
       '<@USER123>+++great work#teamwork',
-      '<@USER123> +++ for designing the new UI #creativity'
+      '<@USER123> +++ for designing the new UI #creativity',
+      '<@USER123> ++ incomplete syntax #innovation',
+      '<@USER123> + missing value tag' // Now valid with 1 '+' symbol
     ];
-    
+
     const invalidFormats = [
-      'just mentioning <@USER123> without recognition',
-      '<@USER123> ++ incomplete syntax #innovation', // Not enough + signs
-      '<@USER123> +++ missing value tag'
+      'just mentioning <@USER123> without recognition' // Invalid due to missing `+` symbols and value tag
     ];
     
     const giverId = 'USER456';
@@ -155,5 +146,76 @@ describe('Recognition Flow Acceptance Tests', () => {
       const recognition = recognitionService.parseRecognition(text, giverId);
       expect(recognition).toBeNull();
     }
+  });
+
+  test('should award points based on the number of + symbols', async () => {
+    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
+
+    const text = '<@USER123> ++ great work #teamwork';
+    const giverId = 'USER456';
+
+    const recognition = await recognitionService.processRecognition(text, giverId);
+
+    expect(recognition).not.toBeNull();
+    expect(recognition?.points).toBe(2);
+    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ points: 2 }));
+  });
+
+  test('should handle multiple recognitions in a single message', async () => {
+    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
+
+    const text = '<@USER123> ++ great work #teamwork <@USER456> +++ amazing effort #innovation';
+    const giverId = 'USER789';
+
+    const recognitions = await recognitionService.processRecognitions(text, giverId);
+
+    expect(recognitions).toHaveLength(2);
+
+    expect(recognitions[0]).toEqual(expect.objectContaining({
+      receiver: 'USER123',
+      points: 2,
+      value: 'teamwork'
+    }));
+
+    expect(recognitions[1]).toEqual(expect.objectContaining({
+      receiver: 'USER456',
+      points: 3,
+      value: 'innovation'
+    }));
+
+    expect(recordSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test('should handle group recognition', async () => {
+    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(recognitionService, 'resolveGroupMembers').mockResolvedValue(['USER123', 'USER456']);
+    const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
+
+    const text = '<!subteam^GROUP123> ++ great teamwork #teamwork';
+    const giverId = 'USER789';
+
+    const recognitions = await recognitionService.parseRecognitionsWithGroups(text, giverId, {} as any);
+
+    for (const recognition of recognitions) {
+      await dataService.recordRecognition(recognition); 
+    }
+
+    expect(recognitions).toHaveLength(2);
+
+    expect(recognitions[0]).toEqual(expect.objectContaining({
+      receiver: 'USER123',
+      points: 2,
+      value: 'teamwork'
+    }));
+
+    expect(recognitions[1]).toEqual(expect.objectContaining({
+      receiver: 'USER456',
+      points: 2,
+      value: 'teamwork'
+    }));
+
+    expect(recordSpy).toHaveBeenCalledTimes(2);
   });
 });

@@ -88,15 +88,25 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
 
 ## Usage
 
-### Recognition
+### Updated Recognition Syntax
 
 To recognize a team member, use the following syntax in any channel where the bot is present:
 
 ```
-@username +++ helped me debug an issue #innovation
+@username ++ helped me debug an issue #innovation
 ```
 
-This awards the user 3 points for the "innovation" value.
+This awards the user 2 points for the "innovation" value. The number of `+` symbols determines the points awarded.
+
+You can also recognize multiple users or groups in a single message:
+
+```
+@username1 @username2 +++ for great teamwork #teamwork
+@developers ++ let's go #teamwork
+```
+
+- The first example awards 3 points to both `@username1` and `@username2` for the "teamwork" value.
+- The second example awards 2 points to all members of the `@developers` group for the "teamwork" value.
 
 ### Commands
 

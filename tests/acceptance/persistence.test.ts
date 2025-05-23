@@ -1,6 +1,5 @@
 import { DataService } from '../../src/services/dataService';
 import fs from 'fs';
-import path from 'path';
 
 // Mock the file system
 jest.mock('fs', () => ({
@@ -20,24 +19,20 @@ describe('Data Persistence Acceptance Tests', () => {
   });
   
   test('should create default data if no file exists', () => {
-    // Mock file does not exist
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     
     const dataService = new DataService(testDataPath);
     const config = dataService.getConfig();
     
-    // Verify default values were created
     expect(config.dailyLimit).toBe(5);
     expect(config.values).toContain('integrity');
     expect(config.rewards.length).toBeGreaterThan(0);
   });
   
   test('should load existing data from file', () => {
-    // Mock file exists
     (fs.existsSync as jest.Mock).mockReturnValue(true);
     
-    // Mock file content
     const mockData = {
       config: {
         dailyLimit: 10,
@@ -54,14 +49,12 @@ describe('Data Persistence Acceptance Tests', () => {
       }
     };
     
-    // Set up mock for readFileSync
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(mockData));
     
     const dataService = new DataService(testDataPath);
     const config = dataService.getConfig();
     const user = dataService.getUserRecord('TEST123');
     
-    // Verify loaded values match mock data
     expect(config.dailyLimit).toBe(10);
     expect(config.values).toEqual(['custom1', 'custom2']);
     expect(config.rewards[0].name).toBe('Custom Reward');
@@ -71,19 +64,16 @@ describe('Data Persistence Acceptance Tests', () => {
   });
   
   test('should save data to file after updates', async () => {
-    // Mock filesystem
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     (fs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
     
     const dataService = new DataService(testDataPath);
     
-    // Make some updates
     await dataService.setDailyLimit(7);
     await dataService.addValue('newvalue');
     await dataService.addReward('New Reward', 60);
     
-    // Record a recognition
     await dataService.recordRecognition({
       giver: 'GIVER123',
       receiver: 'RECEIVER123',
@@ -93,10 +83,8 @@ describe('Data Persistence Acceptance Tests', () => {
       timestamp: Date.now()
     });
     
-    // Verify writeFile was called
     expect(fs.promises.writeFile).toHaveBeenCalledTimes(4);
     
-    // Verify the latest saved data contains our updates
     const lastCall = (fs.promises.writeFile as jest.Mock).mock.calls.slice(-1)[0];
     const savedData = JSON.parse(lastCall[1]);
     
@@ -107,20 +95,16 @@ describe('Data Persistence Acceptance Tests', () => {
   });
   
   test('should handle file system errors gracefully', async () => {
-    // Mock filesystem with error
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     (fs.promises.writeFile as jest.Mock).mockRejectedValue(new Error('Mock IO error'));
     
-    // Spy on console.error
     jest.spyOn(console, 'error').mockImplementation(() => {});
     
     const dataService = new DataService(testDataPath);
     
-    // Attempt an update that should fail
     await expect(dataService.setDailyLimit(7)).rejects.toThrow('Failed to save data');
     
-    // Verify error was logged
     expect(console.error).toHaveBeenCalled();
   });
 });

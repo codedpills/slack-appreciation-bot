@@ -19,12 +19,10 @@ describe('Reward Redemption Acceptance Tests', () => {
   const userId = 'USER123';
   
   beforeEach(() => {
-    // Setup mock filesystem
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
     (fs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
     
-    // Create test services
     dataService = new DataService(testDataPath);
     commandService = new CommandService(dataService, ['ADMIN123']);
   });
@@ -34,14 +32,12 @@ describe('Reward Redemption Acceptance Tests', () => {
   });
   
   test('should verify point balance before redemption', async () => {
-    // Mock methods
     const getRewardSpy = jest.spyOn(dataService, 'getReward')
       .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
     
-    // User with insufficient points
     jest.spyOn(dataService, 'getUserRecord')
       .mockReturnValue({
-        total: 30, // Less than the 50 required
+        total: 30,
         byValue: {},
         dailyGiven: 0,
         lastReset: '2025-01-01'
@@ -56,20 +52,17 @@ describe('Reward Redemption Acceptance Tests', () => {
   });
   
   test('should deduct points after successful redemption', async () => {
-    // Mock methods
     const getRewardSpy = jest.spyOn(dataService, 'getReward')
       .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
     
-    // User with sufficient points
     jest.spyOn(dataService, 'getUserRecord')
       .mockReturnValue({
-        total: 100, // More than the 50 required
+        total: 100,
         byValue: {},
         dailyGiven: 0,
         lastReset: '2025-01-01'
       });
     
-    // Mock redeemReward
     const redeemSpy = jest.spyOn(dataService, 'redeemReward')
       .mockResolvedValue(true);
     
@@ -85,7 +78,6 @@ describe('Reward Redemption Acceptance Tests', () => {
   });
   
   test('should fail if reward does not exist', async () => {
-    // Mock getReward to return undefined
     jest.spyOn(dataService, 'getReward').mockReturnValue(undefined);
     
     const result = await commandService.redeemReward(userId, 'Nonexistent Reward');
@@ -95,11 +87,9 @@ describe('Reward Redemption Acceptance Tests', () => {
   });
   
   test('should handle redemption failure gracefully', async () => {
-    // Mock methods
     jest.spyOn(dataService, 'getReward')
       .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
     
-    // User with sufficient points
     jest.spyOn(dataService, 'getUserRecord')
       .mockReturnValue({
         total: 100,
@@ -108,7 +98,6 @@ describe('Reward Redemption Acceptance Tests', () => {
         lastReset: '2025-01-01'
       });
     
-    // Mock redeemReward to fail
     jest.spyOn(dataService, 'redeemReward').mockResolvedValue(false);
     
     const result = await commandService.redeemReward(userId, 'Coffee Voucher');
