@@ -143,4 +143,19 @@ describe('Home View Builder', () => {
     expect(statsSection).toBeDefined();
     expect(statsSection.text.text).toContain(`Total ${customLabel.charAt(0).toUpperCase() + customLabel.slice(1)}: *5*`);
   });
+
+  test('Home section includes detailed recognition instructions', () => {
+    const customLabel = 'points';
+    const view = buildHomeView(users, values, userId, 'Home', [], false, 5, customLabel);
+    const instructionBlock = view.blocks.find(b => b.text?.text.includes('Valid examples:'));
+    expect(instructionBlock).toBeDefined();
+    const text = instructionBlock!.text.text;
+    // Check valid examples header
+    expect(text).toContain('Valid examples:');
+    // Check available values line
+    const expectedValuesList = [...values.map(v => `#${v}`), '#general'].join(', ');
+    expect(text).toContain(`Available values: ${expectedValuesList}`);
+    // Check invalid examples header
+    expect(text).toContain('Invalid examples:');
+  });
 });

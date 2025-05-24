@@ -128,7 +128,16 @@ export const buildHomeView = (
         text: {
           type: 'mrkdwn',
           text: `*How to recognize teammates:*
-Type \`@username +++ reason #value\` in any channel.`
+Valid examples:
+• \`@username +++ reason #value\`
+• \`@username ++ reason\` _(no tag ⇒ defaults to #general)_
+• \`@alice @bob +++ great collaboration #innovation\`
+• \`@dev_team ++ fixed the bug #teamwork\`
+Available values: ${[...values.map(v => `#${v}`), '#general'].join(', ')}
+Invalid examples:
+• Missing plus signs: \`@username did a great job #teamwork\`
+• No reason text: \`@username +++ #teamwork\`
+• Unknown value tag: \`@username ++ awesome work #nonexistent\``
         }
       },
       {
