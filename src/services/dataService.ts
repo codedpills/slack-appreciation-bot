@@ -179,12 +179,18 @@ export class DataService {
    * Reset user's points
    */
   async resetUserPoints(userId: string): Promise<void> {
-    const userRecord = this.getUserRecord(userId);
-    if (userRecord) {
-      userRecord.total = 0;
-      userRecord.byValue = {};
-      await this.saveState();
+    const today = new Date().toISOString().split('T')[0];
+    // Ensure user record exists
+    if (!this.state.users[userId]) {
+      this.state.users[userId] = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
     }
+    // Reset the user's point data
+    this.state.users[userId].total = 0;
+    this.state.users[userId].byValue = {};
+    // Also reset daily given and last reset date
+    this.state.users[userId].dailyGiven = 0;
+    this.state.users[userId].lastReset = today;
+    await this.saveState();
   }
 
   /**

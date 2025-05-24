@@ -103,21 +103,12 @@ export class RecognitionService {
     const regex = /(?:<@([A-Z0-9]+)>|<!subteam\^([A-Z0-9]+)>)\s*(\+{1,})(.*?)#(\w+)/gi; // match multiple mentions and groups
     const matches = [...text.matchAll(regex)];
 
-    console.log("🚀 ~ parseRecognitionsWithGroups ~ text:", text);
-    console.log("🚀 ~ parseRecognitionsWithGroups ~ matches:", matches);
-
     const recognitions: Recognition[] = [];
 
     for (const match of matches) {
       const [, userId, groupId, plusSymbols, reasonText, valueTag] = match;
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ userId:", userId);
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ groupId:", groupId);
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ plusSymbols:", plusSymbols);
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ reasonText:", reasonText);
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ valueTag:", valueTag);
 
       const mentionedUsers = userId ? [userId] : groupId ? await this.resolveGroupMembers(client, groupId) : [];
-      console.log("🚀 ~ parseRecognitionsWithGroups ~ mentionedUsers:", mentionedUsers);
 
       for (const receiverId of mentionedUsers) {
         if (receiverId === giverId) continue;

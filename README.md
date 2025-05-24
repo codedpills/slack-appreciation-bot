@@ -118,6 +118,7 @@ You can also recognize multiple users or groups in a single message:
 - `/points reward add "Reward Name" <cost>` - Add a redeemable reward
 - `/points reward remove "Reward Name"` - Remove a reward
 - `/points reset @user` - Reset a user's points to 0
+- `/points reset all` - Reset all users' points to 0
 
 #### User Commands
 

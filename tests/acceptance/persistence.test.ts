@@ -107,4 +107,35 @@ describe('Data Persistence Acceptance Tests', () => {
     
     expect(console.error).toHaveBeenCalled();
   });
+  
+  test('should reset a user’s points correctly', async () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
+    (fs.mkdirSync as jest.Mock).mockImplementation(() => {});
+    const writeSpy = (fs.promises.writeFile as jest.Mock).mockResolvedValue(undefined);
+
+    const dataService = new DataService(testDataPath);
+    // Manually set a user record
+    const today = new Date().toISOString().split('T')[0];
+    (dataService as any).state = {
+      config: dataService.getConfig(),
+      users: {
+        'USER123': {
+          total: 10,
+          byValue: { integrity: 10 },
+          dailyGiven: 5,
+          lastReset: '2025-05-23'
+        }
+      }
+    };
+
+    await dataService.resetUserPoints('USER123');
+    // After reset, the writeFile should be called
+    expect(writeSpy).toHaveBeenCalled();
+
+    const user = dataService.getUserRecord('USER123');
+    expect(user.total).toBe(0);
+    expect(user.byValue).toEqual({});
+    expect(user.dailyGiven).toBe(0);
+    expect(user.lastReset).toBe(today);
+  });
 });

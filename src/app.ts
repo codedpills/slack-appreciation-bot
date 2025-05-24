@@ -233,7 +233,9 @@ app.command('/points', async ({ command, ack, respond, client }) => {
       break;
 
     case 'reset':
-      if (args.length < 2) {
+      if (args[1]?.toLowerCase() === 'all') {
+        result = await commandService.resetAllPoints(user_id);
+      } else if (args.length < 2) {
         result = {
           success: false,
           message: 'Please specify a user to reset. Example: /points reset @user'

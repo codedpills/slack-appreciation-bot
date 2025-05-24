@@ -182,6 +182,22 @@ export class CommandService {
     return { success: true, message: `Points for ${target} have been reset.` };
   }
 
+  /**
+   * Reset all users' points
+   */
+  async resetAllPoints(requesterId: string): Promise<CommandResult> {
+    if (!this.isAdmin(requesterId)) {
+      return { success: false, message: 'Only admins can reset all points.' };
+    }
+
+    const users = this.dataService.getAllUsers();
+    for (const userId of Object.keys(users)) {
+      await this.dataService.resetUserPoints(userId);
+    }
+
+    return { success: true, message: 'All user points have been reset.' };
+  }
+
   async redeemReward(userId: string, rewardName: string): Promise<CommandResult> {
     const reward = this.dataService.getReward(rewardName);
     

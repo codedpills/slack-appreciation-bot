@@ -160,4 +160,28 @@ describe('Admin Commands Acceptance Tests', () => {
     expect(result.success).toBe(false);
     expect(result.message).toContain('Invalid user identifier');
   });
+
+  test('should allow admins to reset all user points', async () => {
+    const users = { 'USER1': {}, 'USER2': {} } as any;
+    jest.spyOn(dataService, 'getAllUsers').mockReturnValue(users);
+    const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
+      .mockImplementation(async () => {});
+
+    const result = await commandService.resetAllPoints(adminUserId);
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('All user points have been reset.');
+    expect(resetSpy).toHaveBeenCalledTimes(Object.keys(users).length);
+    expect(resetSpy).toHaveBeenCalledWith('USER1');
+    expect(resetSpy).toHaveBeenCalledWith('USER2');
+  });
+
+  test('should prevent non-admins from resetting all points', async () => {
+    const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
+      .mockImplementation(async () => {});
+
+    const result = await commandService.resetAllPoints(regularUserId);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('Only admins');
+    expect(resetSpy).not.toHaveBeenCalled();
+  });
 });
