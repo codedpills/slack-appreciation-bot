@@ -44,4 +44,27 @@ describe('Home View Builder', () => {
     const entries = blocks.filter(b => b.text?.text.match(/^\*\d+\./));
     expect(entries).toHaveLength(2);
   });
+
+  test('renders Goodies store section', () => {
+    const rewards = [
+      { name: 'Coffee Voucher', cost: 50 },
+      { name: 'Half-day Off', cost: 100 }
+    ];
+    const view = buildHomeView(users, values, userId, 'Goodies store', rewards as any);
+    const blocks = view.blocks;
+    // Header dropdown initial value
+    expect(blocks[0].accessory.initial_option.value).toBe('Goodies store');
+
+    // The store sections should list each reward
+    const rewardSections = blocks.slice(2); // after header and divider
+    expect(rewardSections).toHaveLength(rewards.length);
+
+    rewardSections.forEach((blk, idx) => {
+      expect(blk.type).toBe('section');
+      expect(blk.text.text).toContain(`*${rewards[idx].name}* - ${rewards[idx].cost} points`);
+      expect(blk.accessory.type).toBe('button');
+      expect(blk.accessory.value).toBe(rewards[idx].name);
+      expect(blk.accessory.action_id).toBe(`redeem_store_${rewards[idx].name}`);
+    });
+  });
 });

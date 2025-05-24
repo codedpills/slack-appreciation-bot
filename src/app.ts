@@ -148,7 +148,7 @@ async function publishHomeView(client: any, userId: string) {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, config.values, userId)
+      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards())
     });
   } catch (error) {
     console.error('Error publishing home view:', error);
@@ -417,10 +417,40 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection)
+      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards())
     });
   } catch (error) {
     console.error('Error updating home view section:', error);
+  }
+});
+
+// Handle redeem button in Goodies store
+app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  const rewardName = (action as any).value;
+  const result = await commandService.redeemReward(userId, rewardName);
+  // Send feedback
+  const message = result.success ? `🎉 Redeemed "${rewardName}" successfully!` : result.message;
+  try {
+    await client.chat.postEphemeral({
+      channel: userId,
+      user: userId,
+      text: message
+    });
+  } catch (error) {
+    console.error('Error sending redemption feedback:', error);
+  }
+  // Refresh Home view in Goodies store section
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards())
+    });
+  } catch (error) {
+    console.error('Error refreshing Home view after redeem:', error);
   }
 });
 
@@ -435,4 +465,5 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
 
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.start(port);
+  console.log(`⚡️ Slack app is running on port ${port}`);
 })();

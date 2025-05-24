@@ -1,4 +1,4 @@
-import { UserRecord } from '../types';
+import { UserRecord, Reward } from '../types';
 
 /**
  * Build the App Home view with leaderboard and user stats
@@ -7,7 +7,8 @@ export const buildHomeView = (
   users: Record<string, UserRecord>,
   values: string[],
   userId: string,
-  selectedSection: string = 'Home'
+  selectedSection: string = 'Home',
+  rewards: Reward[] = []
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -27,7 +28,8 @@ export const buildHomeView = (
       placeholder: { type: 'plain_text', text: 'Select Section', emoji: true },
       options: [
         { text: { type: 'plain_text', text: 'Home', emoji: true }, value: 'Home' },
-        { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' }
+        { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' },
+        { text: { type: 'plain_text', text: 'Goodies store', emoji: true }, value: 'Goodies store' }
       ],
       initial_option: {
         text: { type: 'plain_text', text: selectedSection, emoji: true },
@@ -45,6 +47,18 @@ export const buildHomeView = (
         text: { type: 'mrkdwn', text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* points` }
       }))
     ];
+  } else if (selectedSection === 'Goodies store') {
+    // Display the goodies/rewards store
+    contentBlocks = rewards.map(reward => ({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*${reward.name}* - ${reward.cost} points` },
+      accessory: {
+        type: 'button',
+        text: { type: 'plain_text', text: 'Redeem', emoji: true },
+        action_id: `redeem_store_${reward.name}`,
+        value: reward.name
+      }
+    }));
   } else {
     contentBlocks = [
       {
