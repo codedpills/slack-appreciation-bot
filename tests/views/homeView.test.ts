@@ -67,4 +67,35 @@ describe('Home View Builder', () => {
       expect(blk.accessory.action_id).toBe(`redeem_store_${rewards[idx].name}`);
     });
   });
+
+  test('does not include Settings option for non-admin', () => {
+    const view = buildHomeView(users, values, userId);
+    const options = view.blocks[0].accessory.options.map((opt: any) => opt.value);
+    expect(options).not.toContain('Settings');
+  });
+
+  test('includes Settings option for admins', () => {
+    const view = buildHomeView(users, values, userId, 'Home', [], true);
+    const options = view.blocks[0].accessory.options.map((opt: any) => opt.value);
+    expect(options).toContain('Settings');
+  });
+
+  test('renders Settings section for admins', () => {
+    const view = buildHomeView(users, values, userId, 'Settings', [], true);
+    const blocks = view.blocks;
+    // Header shows Settings
+    expect(blocks[0].accessory.initial_option.value).toBe('Settings');
+    // First content block is Admin Settings heading
+    expect(blocks[2].text.text).toContain('Admin Settings');
+    // Verify presence of action buttons
+    const actionBlocks = blocks.filter(b => b.type === 'actions');
+    const expectedIds = [
+      'settings_set_daily_limit','settings_add_value',
+      'settings_remove_value','settings_add_reward',
+      'settings_remove_reward','settings_reset_user',
+      'settings_reset_all'
+    ];
+    const foundIds = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
+    expectedIds.forEach(id => expect(foundIds).toContain(id));
+  });
 });

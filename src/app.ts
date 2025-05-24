@@ -132,6 +132,7 @@ app.message(async ({ message, say, client }) => {
 async function publishHomeView(client: any, userId: string) {
   const users = dataService.getAllUsers();
   const config = dataService.getConfig();
+  const isAdmin = commandService.isAdmin(userId);
 
   // Validate userId format (Slack user IDs start with 'U' and are alphanumeric)
   if (!/^U[A-Z0-9]+$/.test(userId)) {
@@ -148,7 +149,7 @@ async function publishHomeView(client: any, userId: string) {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards())
+      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin)
     });
   } catch (error) {
     console.error('Error publishing home view:', error);
@@ -414,13 +415,38 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
   const userId = (body as any).user.id;
   const users = dataService.getAllUsers();
   const values = dataService.getConfig().values;
+  const isAdmin = commandService.isAdmin(userId);
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards())
+      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin)
     });
   } catch (error) {
     console.error('Error updating home view section:', error);
+  }
+});
+
+// Handle Reset All Points button in Settings
+app.action('settings_reset_all', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  if (!commandService.isAdmin(userId)) return;
+  await commandService.resetAllPoints(userId);
+  // Notify admin
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
+  } catch {}
+  // Refresh Home view in Settings
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const isAdmin = true;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin)
+    });
+  } catch (error) {
+    console.error('Error refreshing Settings view after reset all:', error);
   }
 });
 
@@ -451,6 +477,62 @@ app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => 
     });
   } catch (error) {
     console.error('Error refreshing Home view after redeem:', error);
+  }
+});
+
+// Handle Set Daily Limit button in Settings
+app.action('settings_set_daily_limit', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  // Open modal to input new daily limit
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_set_daily_limit_modal',
+        title: { type: 'plain_text', text: 'Set Daily Limit', emoji: true },
+        submit: { type: 'plain_text', text: 'Set', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          {
+            type: 'input' as const,
+            block_id: 'daily_limit_block',
+            element: {
+              type: 'plain_text_input' as const,
+              action_id: 'daily_limit_input',
+              placeholder: { type: 'plain_text', text: 'Enter a number', emoji: true }
+            },
+            label: { type: 'plain_text', text: 'Daily Limit', emoji: true }
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening daily limit modal:', error);
+  }
+});
+
+// Handle submission of Set Daily Limit modal
+app.view('settings_set_daily_limit_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const limitValue = view.state.values.daily_limit_block.daily_limit_input.value || "";
+  const result = await commandService.setDailyLimit(userId, limitValue);
+  // send feedback
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch (error) {
+    console.error('Error sending daily limit feedback:', error);
+  }
+  // refresh view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin) });
+  } catch (error) {
+    console.error('Error refreshing view after daily limit set:', error);
   }
 });
 

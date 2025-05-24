@@ -8,7 +8,8 @@ export const buildHomeView = (
   values: string[],
   userId: string,
   selectedSection: string = 'Home',
-  rewards: Reward[] = []
+  rewards: Reward[] = [],
+  isAdmin: boolean = false
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -19,6 +20,15 @@ export const buildHomeView = (
   const currentUserData = users[userId] || { total: 0, byValue: {}, dailyGiven: 0, lastReset: '' };
 
   // Header with dropdown select
+  const options: any[] = [
+    { text: { type: 'plain_text', text: 'Home', emoji: true }, value: 'Home' },
+    { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' },
+    { text: { type: 'plain_text', text: 'Goodies store', emoji: true }, value: 'Goodies store' }
+  ];
+  if (isAdmin) {
+    options.push({ text: { type: 'plain_text', text: 'Settings', emoji: true }, value: 'Settings' });
+  }
+
   const headerSection = {
     type: 'section',
     text: { type: 'mrkdwn', text: 'Welcome. Make work fun again!' },
@@ -26,11 +36,7 @@ export const buildHomeView = (
       type: 'static_select',
       action_id: 'home_section_select',
       placeholder: { type: 'plain_text', text: 'Select Section', emoji: true },
-      options: [
-        { text: { type: 'plain_text', text: 'Home', emoji: true }, value: 'Home' },
-        { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' },
-        { text: { type: 'plain_text', text: 'Goodies store', emoji: true }, value: 'Goodies store' }
-      ],
+      options,
       initial_option: {
         text: { type: 'plain_text', text: selectedSection, emoji: true },
         value: selectedSection
@@ -59,6 +65,25 @@ export const buildHomeView = (
         value: reward.name
       }
     }));
+  } else if (selectedSection === 'Settings' && isAdmin) {
+    contentBlocks = [
+      { type: 'section', text: { type: 'mrkdwn', text: '*Admin Settings*' } },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' },
+        { type: 'button', text: { type: 'plain_text', text: 'Add Value', emoji: true }, action_id: 'settings_add_value' }
+      ] },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Remove Value', emoji: true }, action_id: 'settings_remove_value' },
+        { type: 'button', text: { type: 'plain_text', text: 'Add Reward', emoji: true }, action_id: 'settings_add_reward' }
+      ] },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Remove Reward', emoji: true }, action_id: 'settings_remove_reward' },
+        { type: 'button', text: { type: 'plain_text', text: 'Reset User Points', emoji: true }, action_id: 'settings_reset_user' }
+      ] },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Reset All Points', emoji: true }, action_id: 'settings_reset_all' }
+      ] }
+    ];
   } else {
     contentBlocks = [
       {
