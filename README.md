@@ -129,9 +129,13 @@ You can also recognize multiple users or groups in a single message:
 
 The App Home shows:
 
-- Leaderboard of top recognized team members
-- User's own stats (total points, points by value)
-- Instructions for recognizing teammates and redeeming rewards
+- A section selector dropdown with the following options:
+  - **Home:** Your stats, points by value, how to recognize, and how to redeem.
+  - **Recognition Leaderboard:** Top recognized team members this month.
+  - **Goodies store:** Browse and redeem configured rewards via buttons.
+  - **Settings** (admins only): View and modify app configuration directly (daily limit, company values, rewards catalog, reset points) through interactive controls.
+
+When in **Settings**, admins see current configuration values and buttons to set daily limits, add/remove values and rewards, or reset individual/all user points directly from the UI.
 
 ## Data Storage
 

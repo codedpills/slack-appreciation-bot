@@ -98,4 +98,32 @@ describe('Home View Builder', () => {
     const foundIds = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
     expectedIds.forEach(id => expect(foundIds).toContain(id));
   });
+
+  test('renders Settings section for admins with current config', () => {
+    const rewards = [
+      { name: 'Coffee Voucher', cost: 50 },
+      { name: 'Half-day Off', cost: 100 }
+    ];
+    const view = buildHomeView(users, values, userId, 'Settings', rewards as any, true, 7);
+    const blocks = view.blocks;
+    // Header shows Settings
+    expect(blocks[0].accessory.initial_option.value).toBe('Settings');
+    // Daily Limit block
+    const dailyLimitBlock = blocks.find(b => b.text && b.text.text.includes('*Daily Limit:*'));
+    expect(dailyLimitBlock.text.text).toBe('*Daily Limit:* 7');
+    // Values block
+    const valuesBlock = blocks.find(b => b.text && b.text.text.includes('*Company Values:*'));
+    expect(valuesBlock.text.text).toBe('*Company Values:* integrity, innovation');
+    // Rewards block
+    const rewardsBlock = blocks.find(b => b.text && b.text.text.includes('*Rewards:*'));
+    expect(rewardsBlock.text.text).toBe('*Rewards:* Coffee Voucher (50), Half-day Off (100)');
+    // Presence of action buttons
+    const actionIds = blocks.filter(b => b.type === 'actions').flatMap(b => b.elements.map((el: any) => el.action_id));
+    expect(actionIds).toEqual(
+      expect.arrayContaining([
+        'settings_set_daily_limit', 'settings_add_value','settings_remove_value',
+        'settings_add_reward','settings_remove_reward','settings_reset_user','settings_reset_all'
+      ])
+    );
+  });
 });

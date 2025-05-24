@@ -9,7 +9,8 @@ export const buildHomeView = (
   userId: string,
   selectedSection: string = 'Home',
   rewards: Reward[] = [],
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  dailyLimit: number = 0
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -67,20 +68,33 @@ export const buildHomeView = (
     }));
   } else if (selectedSection === 'Settings' && isAdmin) {
     contentBlocks = [
+      // Settings header
       { type: 'section', text: { type: 'mrkdwn', text: '*Admin Settings*' } },
+      { type: 'divider' },
+      // Daily Limit
+      { type: 'section', text: { type: 'mrkdwn', text: `*Daily Limit:* ${dailyLimit}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' },
-        { type: 'button', text: { type: 'plain_text', text: 'Add Value', emoji: true }, action_id: 'settings_add_value' }
+        { type: 'button', text: { type: 'plain_text', text: 'Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' }
       ] },
+      { type: 'divider' },
+      // Company Values
+      { type: 'section', text: { type: 'mrkdwn', text: `*Company Values:* ${values.join(', ')}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Remove Value', emoji: true }, action_id: 'settings_remove_value' },
-        { type: 'button', text: { type: 'plain_text', text: 'Add Reward', emoji: true }, action_id: 'settings_add_reward' }
+        { type: 'button', text: { type: 'plain_text', text: 'Add Value', emoji: true }, action_id: 'settings_add_value' },
+        { type: 'button', text: { type: 'plain_text', text: 'Remove Value', emoji: true }, action_id: 'settings_remove_value' }
       ] },
+      { type: 'divider' },
+      // Rewards
+      { type: 'section', text: { type: 'mrkdwn', text: `*Rewards:* ${rewards.map(r => `${r.name} (${r.cost})`).join(', ')}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Remove Reward', emoji: true }, action_id: 'settings_remove_reward' },
-        { type: 'button', text: { type: 'plain_text', text: 'Reset User Points', emoji: true }, action_id: 'settings_reset_user' }
+        { type: 'button', text: { type: 'plain_text', text: 'Add Reward', emoji: true }, action_id: 'settings_add_reward' },
+        { type: 'button', text: { type: 'plain_text', text: 'Remove Reward', emoji: true }, action_id: 'settings_remove_reward' }
       ] },
+      { type: 'divider' },
+      // Reset options
+      { type: 'section', text: { type: 'mrkdwn', text: '*Reset Options:*' } },
       { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Reset User Points', emoji: true }, action_id: 'settings_reset_user' },
         { type: 'button', text: { type: 'plain_text', text: 'Reset All Points', emoji: true }, action_id: 'settings_reset_all' }
       ] }
     ];

@@ -149,7 +149,7 @@ async function publishHomeView(client: any, userId: string) {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin)
+      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin, config.dailyLimit)
     });
   } catch (error) {
     console.error('Error publishing home view:', error);
@@ -419,7 +419,7 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin)
+      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit)
     });
   } catch (error) {
     console.error('Error updating home view section:', error);
@@ -435,7 +435,7 @@ app.action('settings_reset_all', async ({ body, ack, client }) => {
   // Notify admin
   try {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
-  } catch {}
+  } catch { }
   // Refresh Home view in Settings
   const users = dataService.getAllUsers();
   const values = dataService.getConfig().values;
@@ -443,7 +443,7 @@ app.action('settings_reset_all', async ({ body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin)
+      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset all:', error);
@@ -473,7 +473,7 @@ app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => 
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards())
+      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards(), commandService.isAdmin(userId), dataService.getConfig().dailyLimit)
     });
   } catch (error) {
     console.error('Error refreshing Home view after redeem:', error);
@@ -530,9 +530,258 @@ app.view('settings_set_daily_limit_modal', async ({ ack, body, view, client }) =
   const values = dataService.getConfig().values;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit) });
   } catch (error) {
     console.error('Error refreshing view after daily limit set:', error);
+  }
+});
+
+// Add handlers for other settings actions
+
+// Add Value
+app.action('settings_add_value', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_add_value_modal',
+        title: { type: 'plain_text', text: 'Add Company Value', emoji: true },
+        submit: { type: 'plain_text', text: 'Add', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          {
+            type: 'input' as const,
+            block_id: 'add_value_block',
+            element: {
+              type: 'plain_text_input' as const,
+              action_id: 'add_value_input',
+              placeholder: { type: 'plain_text', text: 'Enter new value', emoji: true }
+            },
+            label: { type: 'plain_text', text: 'New Company Value', emoji: true }
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening add value modal:', error);
+  }
+});
+
+// Add Value submission
+app.view('settings_add_value_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const value = view.state.values.add_value_block.add_value_input.value || "";
+  const result = await commandService.addValue(userId, value);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch { }
+  // refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+  } catch (error) {
+    console.error('Error refreshing view after add value:', error);
+  }
+});
+
+// Remove Value
+app.action('settings_remove_value', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  const currentValues = dataService.getConfig().values;
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_remove_value_modal',
+        title: { type: 'plain_text', text: 'Remove Company Value', emoji: true },
+        submit: { type: 'plain_text', text: 'Remove', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          {
+            type: 'input' as const,
+            block_id: 'remove_value_block',
+            element: {
+              type: 'static_select' as const,
+              action_id: 'remove_value_select',
+              placeholder: { type: 'plain_text', text: 'Select a value', emoji: true },
+              options: currentValues.map(val => ({ text: { type: 'plain_text', text: val, emoji: true }, value: val }))
+            },
+            label: { type: 'plain_text', text: 'Company Value to Remove', emoji: true }
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening remove value modal:', error);
+  }
+});
+
+// Remove Value submission
+app.view('settings_remove_value_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const selected = view.state.values.remove_value_block.remove_value_select.selected_option?.value;
+  const result = await commandService.removeValue(userId, selected || '');
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch { }
+  // refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+  } catch (error) {
+    console.error('Error refreshing view after remove value:', error);
+  }
+});
+
+// Add Reward
+app.action('settings_add_reward', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_add_reward_modal',
+        title: { type: 'plain_text', text: 'Add Reward', emoji: true },
+        submit: { type: 'plain_text', text: 'Add', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          { type: 'input' as const, block_id: 'reward_name_block', element: { type: 'plain_text_input' as const, action_id: 'reward_name_input', placeholder: { type: 'plain_text', text: 'Reward name', emoji: true } }, label: { type: 'plain_text', text: 'Reward Name', emoji: true } },
+          { type: 'input' as const, block_id: 'reward_cost_block', element: { type: 'plain_text_input' as const, action_id: 'reward_cost_input', placeholder: { type: 'plain_text', text: 'Cost (number)', emoji: true } }, label: { type: 'plain_text', text: 'Cost', emoji: true } }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening add reward modal:', error);
+  }
+});
+
+// Add Reward submission
+app.view('settings_add_reward_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const name = view.state.values.reward_name_block.reward_name_input.value || '';
+  const cost = view.state.values.reward_cost_block.reward_cost_input.value || '';
+  const result = await commandService.addReward(userId, name, cost);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch {}
+  // refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+  } catch (error) {
+    console.error('Error refreshing view after add reward:', error);
+  }
+});
+
+// Remove Reward
+app.action('settings_remove_reward', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  const currentRewards = dataService.getConfig().rewards.map(r => r.name);
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_remove_reward_modal',
+        title: { type: 'plain_text', text: 'Remove Reward', emoji: true },
+        submit: { type: 'plain_text', text: 'Remove', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          { type: 'input' as const, block_id: 'remove_reward_block', element: { type: 'static_select' as const, action_id: 'remove_reward_select', placeholder: { type: 'plain_text', text: 'Select a reward', emoji: true }, options: currentRewards.map(name => ({ text: { type: 'plain_text', text: name, emoji: true }, value: name })) }, label: { type: 'plain_text', text: 'Reward to Remove', emoji: true } }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening remove reward modal:', error);
+  }
+});
+
+// Remove Reward submission
+app.view('settings_remove_reward_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const selected = view.state.values.remove_reward_block.remove_reward_select.selected_option?.value;
+  if (!selected) {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: 'No reward was selected. Please try again.' });
+    return;
+  }
+  const result = await commandService.removeReward(userId, selected);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch { }
+  // refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+  } catch (error) {
+    console.error('Error refreshing view after remove reward:', error);
+  }
+});
+
+// Reset User Points
+app.action('settings_reset_user', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_reset_user_modal',
+        title: { type: 'plain_text', text: 'Reset User Points', emoji: true },
+        submit: { type: 'plain_text', text: 'Reset', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          { type: 'input' as const, block_id: 'reset_user_block', element: { type: 'plain_text_input' as const, action_id: 'reset_user_input', placeholder: { type: 'plain_text', text: '@username', emoji: true } }, label: { type: 'plain_text', text: 'User to Reset', emoji: true } }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening reset user modal:', error);
+  }
+});
+
+// Reset User submission
+app.view('settings_reset_user_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const target = view.state.values.reset_user_block.reset_user_input.value || '';
+  const result = await commandService.resetPoints(userId, target, client);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch { }
+  // refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+  } catch (error) {
+    console.error('Error refreshing view after reset user:', error);
   }
 });
 
