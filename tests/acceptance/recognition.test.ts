@@ -220,4 +220,32 @@ describe('Recognition Flow Acceptance Tests', () => {
 
     expect(recordSpy).toHaveBeenCalledTimes(2);
   });
+
+  test('should default to general when no #value tag is provided (single recognition)', async () => {
+    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
+
+    const text = '<@USER123> +++ helped me debug';
+    const giverId = 'USER456';
+
+    const recognition = await recognitionService.processRecognition(text, giverId as string);
+    expect(recognition).not.toBeNull();
+    expect(recognition?.value).toBe('general');
+    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ value: 'general' }));
+  });
+
+  test('should default to general for multi-recognition without #value tag', async () => {
+    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
+
+    const text = '<@USER123> ++ well done <@USER789> + great job';
+    const giverId = 'USER000';
+
+    const recognitions = await recognitionService.processRecognitions(text, giverId);
+    expect(recognitions).toHaveLength(2);
+    for (const r of recognitions) {
+      expect(r.value).toBe('general');
+    }
+    expect(recordSpy).toHaveBeenCalledTimes(2);
+  });
 });
