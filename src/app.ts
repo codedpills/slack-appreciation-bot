@@ -29,8 +29,7 @@ const app = new App({
   logLevel: LogLevel.INFO,
 });
 
-app.use(async ({ payload, next }) => {
-  console.log("🚀 ~ Incoming event payload:", payload);
+app.use(async ({ next }) => {
   await next();
 });
 
@@ -408,6 +407,23 @@ app.event('url_verification', async ({ event, ack }) => {
   }
 });
 
+// Handle section dropdown selection in App Home
+app.action('home_section_select', async ({ action, body, ack, client }) => {
+  await ack();
+  const selectedSection = (action as any).selected_option.value;
+  const userId = (body as any).user.id;
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, selectedSection)
+    });
+  } catch (error) {
+    console.error('Error updating home view section:', error);
+  }
+});
+
 (async () => {
   const adminUsers = await getAdminUsers(app.client);
   commandService = createCommandService(dataService, adminUsers);
@@ -419,5 +435,4 @@ app.event('url_verification', async ({ event, ack }) => {
 
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.start(port);
-  console.log(`⚡️ Appreciation bot is running on port ${port}`);
 })();

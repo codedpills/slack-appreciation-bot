@@ -6,7 +6,8 @@ import { UserRecord } from '../types';
 export const buildHomeView = (
   users: Record<string, UserRecord>,
   values: string[],
-  userId: string
+  userId: string,
+  selectedSection: string = 'Home'
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -16,78 +17,67 @@ export const buildHomeView = (
   const currentUserPosition = userEntries.findIndex(entry => entry.id === userId);
   const currentUserData = users[userId] || { total: 0, byValue: {}, dailyGiven: 0, lastReset: '' };
 
-  // Create blocks for the view
-  return {
-    type: 'home',
-    blocks: [
-      {
-        type: 'header',
-        text: {
-          type: 'plain_text',
-          text: '🏆 Recognition Leaderboard',
-          emoji: true
-        }
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*Top recognized team members this month:*'
-        }
-      },
-      {
-        type: 'divider'
-      },
+  // Header with dropdown select
+  const headerSection = {
+    type: 'section',
+    text: { type: 'mrkdwn', text: 'Welcome. Make work fun again!' },
+    accessory: {
+      type: 'static_select',
+      action_id: 'home_section_select',
+      placeholder: { type: 'plain_text', text: 'Select Section', emoji: true },
+      options: [
+        { text: { type: 'plain_text', text: 'Home', emoji: true }, value: 'Home' },
+        { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' }
+      ],
+      initial_option: {
+        text: { type: 'plain_text', text: selectedSection, emoji: true },
+        value: selectedSection
+      }
+    }
+  };
+  let contentBlocks: any[] = [];
+  if (selectedSection === 'Recognition Leaderboard') {
+    contentBlocks = [
+      { type: 'section', text: { type: 'mrkdwn', text: '*Top recognized team members this month:*' } },
+      { type: 'divider' },
       ...userEntries.slice(0, 10).map((entry, index) => ({
         type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* points`
-        }
-      })),
-      {
-        type: 'divider'
-      },
+        text: { type: 'mrkdwn', text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* points` }
+      }))
+    ];
+  } else {
+    contentBlocks = [
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Your Stats:*\n• Total Points: *${currentUserData.total}*\n• Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
-        }
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*Points by Value:*'
+          text: `*Your Stats:*
+• Total Points: *${currentUserData.total}*
+• Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
         }
       },
-      {
-        type: 'section',
-        fields: values.map(value => ({
-          type: 'mrkdwn',
-          text: `*#${value}:* ${currentUserData.byValue[value] || 0} points`
-        }))
-      },
-      {
-        type: 'divider'
-      },
+      { type: 'section', text: { type: 'mrkdwn', text: '*Points by Value:*' } },
+      { type: 'section', fields: values.map(value => ({ type: 'mrkdwn', text: `*#${value}:* ${currentUserData.byValue[value] || 0} points` })) },
+      { type: 'divider' },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '*How to recognize teammates:*\nType `@username +++ reason #value` in any channel.'
+          text: `*How to recognize teammates:*
+Type \`@username +++ reason #value\` in any channel.`
         }
       },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '*How to redeem rewards:*\nUse the `/redeem` command to spend your points on available rewards.'
+          text: `*How to redeem rewards:*
+Use the \`/redeem\` command to spend your points on available rewards.`
         }
       }
-    ]
-  };
+    ];
+  }
+  return { type: 'home' as const, blocks: [headerSection, { type: 'divider' }, ...contentBlocks] };
 };
 
 /**
@@ -102,7 +92,7 @@ export const buildRedeemModal = (rewards: Array<{ name: string; cost: number }>,
       emoji: true
     },
     submit: {
-      type: 'plain_text' as const,  
+      type: 'plain_text' as const,
       text: 'Redeem',
       emoji: true
     },
