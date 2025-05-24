@@ -232,6 +232,28 @@ export class CommandService {
       };
     }
   }
+
+  /**
+   * Reset all configured rewards
+   */
+  async resetRewards(userId: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId)) {
+      return { success: false, message: 'Only admins can reset rewards.' };
+    }
+    await this.dataService.resetRewards();
+    return { success: true, message: 'All rewards have been reset.' };
+  }
+
+  /**
+   * Reset company values to defaults
+   */
+  async resetValues(userId: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId)) {
+      return { success: false, message: 'Only admins can reset company values.' };
+    }
+    await this.dataService.resetValues();
+    return { success: true, message: 'Company values have been reset.' };
+  }
 }
 
 export const createCommandService = (

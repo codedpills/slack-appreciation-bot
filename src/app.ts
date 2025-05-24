@@ -450,6 +450,54 @@ app.action('settings_reset_all', async ({ body, ack, client }) => {
   }
 });
 
+// Handle Reset Rewards button in Settings
+app.action('settings_reset_rewards', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  if (!commandService.isAdmin(userId)) return;
+  const result = await commandService.resetRewards(userId);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch {}
+  // Refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit)
+    });
+  } catch (error) {
+    console.error('Error refreshing Settings view after reset rewards:', error);
+  }
+});
+
+// Handle Reset Company Values button in Settings
+app.action('settings_reset_values', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  if (!commandService.isAdmin(userId)) return;
+  const result = await commandService.resetValues(userId);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch {}
+  // Refresh Settings view
+  const users = dataService.getAllUsers();
+  const values = dataService.getConfig().values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit)
+    });
+  } catch (error) {
+    console.error('Error refreshing Settings view after reset values:', error);
+  }
+});
+
 // Handle redeem button in Goodies store
 app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => {
   await ack();

@@ -96,6 +96,10 @@ export const buildHomeView = (
       { type: 'actions', elements: [
         { type: 'button', text: { type: 'plain_text', text: 'Reset User Points', emoji: true }, action_id: 'settings_reset_user' },
         { type: 'button', text: { type: 'plain_text', text: 'Reset All Points', emoji: true }, action_id: 'settings_reset_all' }
+      ] },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Reset Rewards', emoji: true }, action_id: 'settings_reset_rewards' },
+        { type: 'button', text: { type: 'plain_text', text: 'Reset Company Values', emoji: true }, action_id: 'settings_reset_values' }
       ] }
     ];
   } else {

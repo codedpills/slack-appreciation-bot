@@ -309,6 +309,23 @@ export class DataService {
 
     await this.saveState();
   }
+
+  /**
+   * Reset all configured rewards
+   */
+  async resetRewards(): Promise<void> {
+    this.state.config.rewards = [];
+    await this.saveState();
+  }
+
+  /**
+   * Reset company values to defaults
+   */
+  async resetValues(): Promise<void> {
+    // Default values as initialized
+    this.state.config.values = ['integrity', 'innovation', 'teamwork'];
+    await this.saveState();
+  }
 }
 
 export const createDataService = (dataFilePath: string): DataService => {

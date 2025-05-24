@@ -126,4 +126,13 @@ describe('Home View Builder', () => {
       ])
     );
   });
+
+  test('Settings section includes reset rewards and reset values buttons', () => {
+    const rewards = [] as any;
+    const view = buildHomeView(users, values, userId, 'Settings', rewards, true, 5);
+    const actionBlocks = view.blocks.filter(b => b.type === 'actions');
+    const allActions = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
+    expect(allActions).toContain('settings_reset_rewards');
+    expect(allActions).toContain('settings_reset_values');
+  });
 });
