@@ -150,7 +150,7 @@ async function publishHomeView(client: any, userId: string) {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin, config.dailyLimit)
+      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin, config.dailyLimit, config.label)
     });
   } catch (error) {
     console.error('Error publishing home view:', error);
@@ -427,7 +427,7 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit)
+      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
     });
   } catch (error) {
     console.error('Error updating home view section:', error);
@@ -451,7 +451,7 @@ app.action('settings_reset_all', async ({ body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit)
+      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset all:', error);
@@ -475,7 +475,7 @@ app.action('settings_reset_rewards', async ({ body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset rewards:', error);
@@ -499,7 +499,7 @@ app.action('settings_reset_values', async ({ body, ack, client }) => {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset values:', error);
@@ -529,7 +529,7 @@ app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => 
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards(), commandService.isAdmin(userId), dataService.getConfig().dailyLimit)
+      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards(), commandService.isAdmin(userId), dataService.getConfig().dailyLimit, dataService.getConfig().label)
     });
   } catch (error) {
     console.error('Error refreshing Home view after redeem:', error);
@@ -586,7 +586,7 @@ app.view('settings_set_daily_limit_modal', async ({ ack, body, view, client }) =
   const values = dataService.getConfig().values;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after daily limit set:', error);
   }
@@ -641,7 +641,7 @@ app.view('settings_add_value_modal', async ({ ack, body, view, client }) => {
   const rewards = dataService.getRewards();
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after add value:', error);
   }
@@ -696,7 +696,7 @@ app.view('settings_remove_value_modal', async ({ ack, body, view, client }) => {
   const rewards = dataService.getRewards();
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after remove value:', error);
   }
@@ -742,7 +742,7 @@ app.view('settings_add_reward_modal', async ({ ack, body, view, client }) => {
   const rewards = dataService.getRewards();
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after add reward:', error);
   }
@@ -791,7 +791,7 @@ app.view('settings_remove_reward_modal', async ({ ack, body, view, client }) => 
   const rewards = dataService.getRewards();
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after remove reward:', error);
   }
@@ -835,7 +835,7 @@ app.view('settings_reset_user_modal', async ({ ack, body, view, client }) => {
   const rewards = dataService.getRewards();
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
   } catch (error) {
     console.error('Error refreshing view after reset user:', error);
   }

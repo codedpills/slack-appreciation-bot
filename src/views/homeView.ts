@@ -59,7 +59,7 @@ export const buildHomeView = (
     // Display the goodies/rewards store
     contentBlocks = rewards.map(reward => ({
       type: 'section',
-      text: { type: 'mrkdwn', text: `*${reward.name}* - ${reward.cost} points` },
+      text: { type: 'mrkdwn', text: `*${reward.name}* - ${reward.cost} ${label}` },
       accessory: {
         type: 'button',
         text: { type: 'plain_text', text: 'Redeem', emoji: true },
