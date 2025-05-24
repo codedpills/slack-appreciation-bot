@@ -28,7 +28,18 @@ export class DataService {
       // Try to load existing data
       if (fs.existsSync(this.dataFilePath)) {
         const data = fs.readFileSync(this.dataFilePath, 'utf8');
-        return JSON.parse(data);
+        // Parse and merge with defaults to ensure new fields (like label) exist
+        const parsed: any = JSON.parse(data);
+        const defaultConfig = {
+          dailyLimit: 10,
+          values: ['teamwork'],
+          rewards: [ { name: 'Coffee Voucher', cost: 50 } ],
+          label: 'points'
+        };
+        return {
+          config: { ...defaultConfig, ...parsed.config },
+          users: parsed.users || {}
+        };
       }
     } catch (error) {
       console.error('Error loading data:', error);

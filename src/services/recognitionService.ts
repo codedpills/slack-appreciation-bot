@@ -167,6 +167,22 @@ export class RecognitionService {
 
     return validRecognitions;
   }
+
+  /**
+   * Process and save group recognitions in one step
+   */
+  async processRecognitionsWithGroups(text: string, giverId: string, client: any): Promise<Recognition[]> {
+    const recognitions = await this.parseRecognitionsWithGroups(text, giverId, client);
+    const validRecognitions: Recognition[] = [];
+    for (const recognition of recognitions) {
+      if (!this.dataService.canGivePoints(giverId, recognition.points)) {
+        continue;
+      }
+      await this.dataService.recordRecognition(recognition);
+      validRecognitions.push(recognition);
+    }
+    return validRecognitions;
+  }
 }
 
 export const createRecognitionService = (dataService: DataService): RecognitionService => {

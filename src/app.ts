@@ -93,7 +93,8 @@ app.message(async ({ message, say, client }) => {
 
   if (!messageEvent.text || !messageEvent.user) return;
 
-  const recognitions = await recognitionService.parseRecognitionsWithGroups(messageEvent.text, messageEvent.user, client);
+  // process and record recognitions, returning valid recognitions
+  const recognitions = await recognitionService.processRecognitionsWithGroups(messageEvent.text, messageEvent.user, client);
   const label = dataService.getConfig().label;
 
   for (const recognition of recognitions) {
@@ -122,6 +123,7 @@ app.message(async ({ message, say, client }) => {
 
   if (recognitions.length > 0) {
     try {
+      // refresh Home views so persistence is shown
       await publishHomeView(client, recognitions[0].receiver);
       await publishHomeView(client, recognitions[0].giver);
     } catch (error) {
