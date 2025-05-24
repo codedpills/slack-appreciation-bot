@@ -37,11 +37,10 @@ export class DataService {
     // Return default state if no data exists or error occurred
     return {
       config: {
-        dailyLimit: 5,
-        values: ['integrity', 'innovation', 'teamwork'],
+        dailyLimit: 10,
+        values: ['teamwork'],
         rewards: [
           { name: 'Coffee Voucher', cost: 50 },
-          { name: 'Half-day Off', cost: 100 }
         ]
       },
       users: {}
@@ -116,13 +115,13 @@ export class DataService {
     const existingIndex = this.state.config.rewards.findIndex(
       r => r.name === name
     );
-    
+
     if (existingIndex >= 0) {
       this.state.config.rewards[existingIndex].cost = cost;
     } else {
       this.state.config.rewards.push({ name, cost });
     }
-    
+
     await this.saveState();
   }
 
@@ -164,7 +163,7 @@ export class DataService {
         lastReset: today
       };
     }
-    
+
     return { ...this.state.users[userId] };
   }
 
@@ -199,7 +198,7 @@ export class DataService {
   async recordRecognition(recognition: Recognition): Promise<void> {
     const { giver, receiver, value, points } = recognition;
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Update giver's daily given
     if (!this.state.users[giver]) {
       this.state.users[giver] = {
@@ -209,16 +208,16 @@ export class DataService {
         lastReset: today
       };
     }
-    
+
     // Check if we need to reset the daily limit
     if (this.state.users[giver].lastReset !== today) {
       this.state.users[giver].dailyGiven = 0;
       this.state.users[giver].lastReset = today;
     }
-    
+
     // Increment daily given
     this.state.users[giver].dailyGiven += points;
-    
+
     // Update receiver's points
     if (!this.state.users[receiver]) {
       this.state.users[receiver] = {
@@ -228,16 +227,16 @@ export class DataService {
         lastReset: today
       };
     }
-    
+
     // Increment total
     this.state.users[receiver].total += points;
-    
+
     // Increment value-specific points
     if (!this.state.users[receiver].byValue[value]) {
       this.state.users[receiver].byValue[value] = 0;
     }
     this.state.users[receiver].byValue[value] += points;
-    
+
     await this.saveState();
   }
 
@@ -247,12 +246,12 @@ export class DataService {
   canGivePoints(userId: string, points: number): boolean {
     const today = new Date().toISOString().split('T')[0];
     const user = this.getUserRecord(userId);
-    
+
     // Reset daily given if it's a new day
     if (user.lastReset !== today) {
       return true;
     }
-    
+
     return user.dailyGiven + points <= this.state.config.dailyLimit;
   }
 
@@ -262,14 +261,14 @@ export class DataService {
   async redeemReward(userId: string, rewardName: string): Promise<boolean> {
     const reward = this.getReward(rewardName);
     if (!reward) return false;
-    
+
     const user = this.getUserRecord(userId);
     if (user.total < reward.cost) return false;
-    
+
     // Deduct points
     this.state.users[userId].total -= reward.cost;
     await this.saveState();
-    
+
     return true;
   }
 
@@ -323,7 +322,7 @@ export class DataService {
    */
   async resetValues(): Promise<void> {
     // Default values as initialized
-    this.state.config.values = ['integrity', 'innovation', 'teamwork'];
+    this.state.config.values = ['teamwork'];
     await this.saveState();
   }
 }

@@ -32,7 +32,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
     
-    const text = '<@USER123> +++ helped me debug a critical issue #innovation';
+    const text = '<@USER123> +++ helped me debug a critical issue #teamwork';
     const giverId = 'USER456';
     
     const recognition = await recognitionService.processRecognition(text, giverId);
@@ -41,7 +41,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     expect(recognition).not.toBeNull();
     expect(recognition?.giver).toBe(giverId);
     expect(recognition?.receiver).toBe('USER123');
-    expect(recognition?.value).toBe('innovation');
+    expect(recognition?.value).toBe('teamwork');
     expect(recognition?.points).toBe(3);
     
     // Verify the recognition was recorded
@@ -49,7 +49,7 @@ describe('Recognition Flow Acceptance Tests', () => {
       giver: giverId,
       receiver: 'USER123',
       reason: 'helped me debug a critical issue',
-      value: 'innovation',
+      value: 'teamwork',
       points: 3
     }));
   });
@@ -86,7 +86,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
     
-    const text = '<@USER123> +++ helped me debug #innovation';
+    const text = '<@USER123> +++ helped me debug #teamwork';
     const giverId = 'USER456';
     
     // First recognition should succeed
@@ -166,7 +166,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
-    const text = '<@USER123> ++ great work #teamwork <@USER456> +++ amazing effort #innovation';
+    const text = '<@USER123> ++ great work #teamwork <@USER456> +++ amazing effort #teamwork';
     const giverId = 'USER789';
 
     const recognitions = await recognitionService.processRecognitions(text, giverId);
@@ -182,7 +182,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     expect(recognitions[1]).toEqual(expect.objectContaining({
       receiver: 'USER456',
       points: 3,
-      value: 'innovation'
+      value: 'teamwork'
     }));
 
     expect(recordSpy).toHaveBeenCalledTimes(2);

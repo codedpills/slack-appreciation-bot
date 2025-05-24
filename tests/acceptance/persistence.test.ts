@@ -25,8 +25,8 @@ describe('Data Persistence Acceptance Tests', () => {
     const dataService = new DataService(testDataPath);
     const config = dataService.getConfig();
     
-    expect(config.dailyLimit).toBe(5);
-    expect(config.values).toContain('integrity');
+    expect(config.dailyLimit).toBe(10);
+    expect(config.values).toEqual(['teamwork']);
     expect(config.rewards.length).toBeGreaterThan(0);
   });
   
