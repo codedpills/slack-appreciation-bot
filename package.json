@@ -5,6 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "build": "tsc",
+     "heroku-postbuild": "npm run build",
     "start": "node dist/app.js",
     "dev": "ts-node src/app.ts",
     "test": "jest",
