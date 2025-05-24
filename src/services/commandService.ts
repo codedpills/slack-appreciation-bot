@@ -254,6 +254,20 @@ export class CommandService {
     await this.dataService.resetValues();
     return { success: true, message: 'Company values have been reset.' };
   }
+
+  /**
+   * Set custom label for points
+   */
+  async setLabel(userId: string, label: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId)) {
+      return { success: false, message: 'Only admins can set the points label.' };
+    }
+    if (!label || label.trim() === '') {
+      return { success: false, message: 'Please provide a valid label.' };
+    }
+    await this.dataService.setLabel(label.trim());
+    return { success: true, message: `Points label set to "${label.trim()}".` };
+  }
 }
 
 export const createCommandService = (

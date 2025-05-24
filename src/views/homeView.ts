@@ -10,7 +10,8 @@ export const buildHomeView = (
   selectedSection: string = 'Home',
   rewards: Reward[] = [],
   isAdmin: boolean = false,
-  dailyLimit: number = 0
+  dailyLimit: number = 0,
+  label: string = 'points'
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -51,7 +52,7 @@ export const buildHomeView = (
       { type: 'divider' },
       ...userEntries.slice(0, 10).map((entry, index) => ({
         type: 'section',
-        text: { type: 'mrkdwn', text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* points` }
+        text: { type: 'mrkdwn', text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* ${label}` }
       }))
     ];
   } else if (selectedSection === 'Goodies store') {
@@ -70,6 +71,12 @@ export const buildHomeView = (
     contentBlocks = [
       // Settings header
       { type: 'section', text: { type: 'mrkdwn', text: '*Admin Settings*' } },
+      { type: 'divider' },
+      // Points Label
+      { type: 'section', text: { type: 'mrkdwn', text: `*${label.charAt(0).toUpperCase() + label.slice(1)} Label:* ${label}` } },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Set Label', emoji: true }, action_id: 'settings_set_label' }
+      ] },
       { type: 'divider' },
       // Daily Limit
       { type: 'section', text: { type: 'mrkdwn', text: `*Daily Limit:* ${dailyLimit}` } },
@@ -109,12 +116,12 @@ export const buildHomeView = (
         text: {
           type: 'mrkdwn',
           text: `*Your Stats:*
-• Total Points: *${currentUserData.total}*
+• Total ${label.charAt(0).toUpperCase() + label.slice(1)}: *${currentUserData.total}*
 • Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
         }
       },
-      { type: 'section', text: { type: 'mrkdwn', text: '*Points by Value:*' } },
-      { type: 'section', fields: values.map(value => ({ type: 'mrkdwn', text: `*#${value}:* ${currentUserData.byValue[value] || 0} points` })) },
+      { type: 'section', text: { type: 'mrkdwn', text: `*${label.charAt(0).toUpperCase() + label.slice(1)} by Value:*` } },
+      { type: 'section', fields: values.map(value => ({ type: 'mrkdwn', text: `*#${value}:* ${currentUserData.byValue[value] || 0} ${label}` })) },
       { type: 'divider' },
       {
         type: 'section',
@@ -129,7 +136,7 @@ Type \`@username +++ reason #value\` in any channel.`
         text: {
           type: 'mrkdwn',
           text: `*How to redeem rewards:*
-Use the \`/redeem\` command to spend your points on available rewards.`
+Use the \`/redeem\` command to spend your ${label} on available rewards.`
         }
       }
     ];

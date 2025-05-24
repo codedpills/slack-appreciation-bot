@@ -184,4 +184,18 @@ describe('Admin Commands Acceptance Tests', () => {
     expect(result.message).toContain('Only admins');
     expect(resetSpy).not.toHaveBeenCalled();
   });
+
+  test('should allow admins to set custom points label', async () => {
+    const setLabelSpy = jest.spyOn(dataService, 'setLabel')
+      .mockImplementation(async () => {});
+
+    const adminResult = await commandService.setLabel(adminUserId, 'kutanacoins');
+    expect(adminResult.success).toBe(true);
+    expect(setLabelSpy).toHaveBeenCalledWith('kutanacoins');
+    expect(adminResult.message).toContain('kutanacoins');
+
+    const userResult = await commandService.setLabel(regularUserId, 'gold');
+    expect(userResult.success).toBe(false);
+    expect(userResult.message).toContain('Only admins');
+  });
 });

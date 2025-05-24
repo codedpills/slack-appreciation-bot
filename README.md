@@ -115,6 +115,7 @@ You can also recognize multiple users or groups in a single message:
 - `/points config daily_limit <n>` - Set the daily point limit
 - `/points config add_value <value>` - Add a company value
 - `/points config remove_value <value>` - Remove a company value
+- `/points config label <label>` - Set a custom name for points (e.g. "kutanacoins")
 - `/points reward add "Reward Name" <cost>` - Add a redeemable reward
 - `/points reward remove "Reward Name"` - Remove a reward
 - `/points reset @user` - Reset a user's points to 0

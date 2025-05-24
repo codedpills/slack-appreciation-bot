@@ -58,7 +58,8 @@ describe('Recognition Flow Acceptance Tests', () => {
     jest.spyOn(dataService, 'getConfig').mockReturnValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation'],
-      rewards: []
+      rewards: [],
+      label: 'points'
     });
     
     // Valid recognition with recognized value
@@ -117,7 +118,8 @@ describe('Recognition Flow Acceptance Tests', () => {
     jest.spyOn(dataService, 'getConfig').mockReturnValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation', 'creativity'],
-      rewards: []
+      rewards: [],
+      label: 'coins'
     });
     
     const validFormats = [

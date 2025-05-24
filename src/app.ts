@@ -94,16 +94,17 @@ app.message(async ({ message, say, client }) => {
   if (!messageEvent.text || !messageEvent.user) return;
 
   const recognitions = await recognitionService.parseRecognitionsWithGroups(messageEvent.text, messageEvent.user, client);
+  const label = dataService.getConfig().label;
 
   for (const recognition of recognitions) {
     await say({
-      text: `:tada: <@${recognition.receiver}> +${recognition.points} pts for *${recognition.value}*!`,
+      text: `:tada: <@${recognition.receiver}> +${recognition.points} ${label} for *${recognition.value}!`,
       blocks: [
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `:tada: <@${recognition.receiver}> *+${recognition.points} pts* for *${recognition.value}*!`
+            text: `:tada: <@${recognition.receiver}> *+${recognition.points} ${label}* for *${recognition.value}*!`
           }
         },
         {
@@ -186,10 +187,15 @@ app.command('/points', async ({ command, ack, respond, client }) => {
           result = await commandService.removeValue(user_id, args[2]);
           break;
 
+        case 'label':
+          const newLabel = args.slice(2).join(' ');
+          result = await commandService.setLabel(user_id, newLabel);
+          break;
+
         default:
           result = {
             success: false,
-            message: 'Invalid config command. Available commands: daily_limit, add_value, remove_value'
+            message: 'Invalid config command. Available commands: daily_limit, add_value, remove_value, label'
           };
       }
       break;
@@ -307,6 +313,8 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
 
   if (result.success && result.data) {
     const { reward, user } = result.data;
+    const config = dataService.getConfig();
+    const label = config.label;
 
     try {
       await client.chat.postMessage({
@@ -316,7 +324,7 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
           reward.cost,
           user.total - reward.cost
         ),
-        text: `Redemption confirmed: ${reward.name} for ${reward.cost} points`
+        text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}`
       });
     } catch (error) {
       console.error('Error sending redemption confirmation:', error);
@@ -367,7 +375,7 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
           reward.cost,
           user.total - reward.cost
         ),
-        text: `Redemption confirmed: ${reward.name} for ${reward.cost} points`
+        text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${dataService.getConfig().label}`
       });
     } catch (error) {
       console.error('Error sending redemption confirmation:', error);
@@ -830,6 +838,65 @@ app.view('settings_reset_user_modal', async ({ ack, body, view, client }) => {
     await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit) });
   } catch (error) {
     console.error('Error refreshing view after reset user:', error);
+  }
+});
+
+// Handle Set Label button in Settings
+app.action('settings_set_label', async ({ body, ack, client }) => {
+  await ack();
+  const userId = (body as any).user.id;
+  try {
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_set_label_modal',
+        title: { type: 'plain_text', text: 'Set Label', emoji: true },
+        submit: { type: 'plain_text', text: 'Set', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          {
+            type: 'input' as const,
+            block_id: 'label_block',
+            element: {
+              type: 'plain_text_input' as const,
+              action_id: 'label_input',
+              placeholder: { type: 'plain_text', text: 'Enter new label', emoji: true }
+            },
+            label: { type: 'plain_text', text: 'Points Label', emoji: true }
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error opening label modal:', error);
+  }
+});
+
+// Handle submission of Set Label modal
+app.view('settings_set_label_modal', async ({ ack, body, view, client }) => {
+  await ack();
+  const userId = body.user.id;
+  const newLabel = view.state.values.label_block.label_input.value || "";
+  const result = await commandService.setLabel(userId, newLabel);
+  try {
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+  } catch (error) {
+    console.error('Error sending label feedback:', error);
+  }
+  // Refresh Settings view with updated label
+  const users = dataService.getAllUsers();
+  const config = dataService.getConfig();
+  const values = config.values;
+  const rewards = dataService.getRewards();
+  const isAdmin = true;
+  try {
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, config.dailyLimit, config.label)
+    });
+  } catch (error) {
+    console.error('Error refreshing Settings view after label set:', error);
   }
 });
 

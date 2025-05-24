@@ -135,4 +135,12 @@ describe('Home View Builder', () => {
     expect(allActions).toContain('settings_reset_rewards');
     expect(allActions).toContain('settings_reset_values');
   });
+
+  test('Home section displays custom label correctly', () => {
+    const customLabel = 'coins';
+    const view = buildHomeView(users, values, userId, 'Home', [], false, 5, customLabel);
+    const statsSection = view.blocks.find(b => b.text?.text.includes(`Total ${customLabel.charAt(0).toUpperCase() + customLabel.slice(1)}`));
+    expect(statsSection).toBeDefined();
+    expect(statsSection.text.text).toContain(`Total ${customLabel.charAt(0).toUpperCase() + customLabel.slice(1)}: *5*`);
+  });
 });

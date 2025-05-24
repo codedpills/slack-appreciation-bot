@@ -41,7 +41,8 @@ export class DataService {
         values: ['teamwork'],
         rewards: [
           { name: 'Coffee Voucher', cost: 50 },
-        ]
+        ],
+        label: 'points'
       },
       users: {}
     };
@@ -323,6 +324,14 @@ export class DataService {
   async resetValues(): Promise<void> {
     // Default values as initialized
     this.state.config.values = ['teamwork'];
+    await this.saveState();
+  }
+
+  /**
+   * Set the label for points
+   */
+  async setLabel(label: string): Promise<void> {
+    this.state.config.label = label;
     await this.saveState();
   }
 }

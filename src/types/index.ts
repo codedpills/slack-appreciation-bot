@@ -6,6 +6,7 @@ export interface AppConfig {
   dailyLimit: number;
   values: string[];
   rewards: Reward[];
+  label: string;
 }
 
 export interface Reward {
