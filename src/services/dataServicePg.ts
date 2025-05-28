@@ -1,12 +1,15 @@
 import { Pool } from 'pg';
 import { IDataService } from './dataServiceInterface';
-import { AppState, UserRecord, Reward, Recognition } from '../types';
+import { AppState} from '../types';
 
 /**
  * Postgres-backed implementation of IDataService
  */
 export function createDataService(): IDataService {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
   const defaults: AppState['config'] = {
     dailyLimit: 10,
     values: ['teamwork'],
