@@ -1,8 +1,7 @@
 import { App, LogLevel, GenericMessageEvent } from '@slack/bolt';
 import dotenv from 'dotenv';
-import path from 'path';
 
-import { createDataService } from './services/dataService';
+import { createDataService } from './services/dataServicePg';
 import { createRecognitionService } from './services/recognitionService';
 import { createCommandService } from './services/commandService';
 import {
@@ -13,10 +12,8 @@ import {
 } from './views/homeView';
 
 dotenv.config();
+const dataService = createDataService();
 
-const dataFilePath = process.env.DATA_FILE_PATH || path.join(__dirname, '../data/store.json');
-
-const dataService = createDataService(dataFilePath);
 const recognitionService = createRecognitionService(dataService);
 
 let commandService = createCommandService(dataService, []);
