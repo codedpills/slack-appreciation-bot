@@ -1,11 +1,11 @@
-import { DataService } from './dataService';
+import { IDataService } from './dataServiceInterface';
 import { CommandResult } from '../types';
 
 export class CommandService {
-  private dataService: DataService;
+  private dataService: IDataService;
   private adminUsers: string[];
   
-  constructor(dataService: DataService, adminUsers: string[] = []) {
+  constructor(dataService: IDataService, adminUsers: string[] = []) {
     this.dataService = dataService;
     this.adminUsers = adminUsers;
   }
@@ -271,7 +271,7 @@ export class CommandService {
 }
 
 export const createCommandService = (
-  dataService: DataService,
+  dataService: IDataService,
   adminUsers: string[] = []
 ): CommandService => {
   return new CommandService(dataService, adminUsers);

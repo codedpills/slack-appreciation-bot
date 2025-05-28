@@ -1,13 +1,13 @@
-import { DataService } from './dataService';
+import { IDataService } from './dataServiceInterface';
 import { Recognition } from '../types';
 
 /**
  * Service for handling recognitions
  */
 export class RecognitionService {
-  private dataService: DataService;
+  private dataService: IDataService;
 
-  constructor(dataService: DataService) {
+  constructor(dataService: IDataService) {
     this.dataService = dataService;
   }
 
@@ -200,6 +200,6 @@ export class RecognitionService {
   }
 }
 
-export const createRecognitionService = (dataService: DataService): RecognitionService => {
+export const createRecognitionService = (dataService: IDataService): RecognitionService => {
   return new RecognitionService(dataService);
 };
