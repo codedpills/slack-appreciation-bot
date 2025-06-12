@@ -117,25 +117,25 @@ describe('Admin Commands Acceptance Tests', () => {
   test('should reset user points and persist changes', async () => {
     const resetSpy = jest.spyOn(dataService, 'resetUserPoints')
       .mockImplementation(async (userId) => {
-        const userRecord = dataService.getUserRecord(userId);
+        const userRecord = await dataService.getUserRecord(userId);
         userRecord.total = 0;
         userRecord.byValue = {};
         await dataService.saveData();
       });
 
-    jest.spyOn(dataService, 'getUserRecord').mockReturnValue({
-      total: 0,
-      byValue: {},
-      dailyGiven: 0,
-      lastReset: '2025-05-23'
-    });
+    jest.spyOn(dataService, 'getUserRecord').mockResolvedValue({
+       total: 0,
+       byValue: {},
+       dailyGiven: 0,
+       lastReset: '2025-05-23'
+     });
 
     const adminResult = await commandService.resetPoints(adminUserId, 'USER789', mockClient);
     expect(adminResult.success).toBe(true);
     expect(adminResult.message).toContain('Points for USER789 have been reset.');
     expect(resetSpy).toHaveBeenCalledWith('USER789');
 
-    const updatedUser = dataService.getUserRecord('USER789');
+    const updatedUser = await dataService.getUserRecord('USER789');
     expect(updatedUser.total).toBe(0);
     expect(updatedUser.byValue).toEqual({});
   });

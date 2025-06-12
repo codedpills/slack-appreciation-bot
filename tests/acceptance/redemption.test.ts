@@ -33,10 +33,10 @@ describe('Reward Redemption Acceptance Tests', () => {
   
   test('should verify point balance before redemption', async () => {
     const getRewardSpy = jest.spyOn(dataService, 'getReward')
-      .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
+      .mockResolvedValue({ name: 'Coffee Voucher', cost: 50 });
     
     jest.spyOn(dataService, 'getUserRecord')
-      .mockReturnValue({
+      .mockResolvedValue({
         total: 30,
         byValue: {},
         dailyGiven: 0,
@@ -53,10 +53,10 @@ describe('Reward Redemption Acceptance Tests', () => {
   
   test('should deduct points after successful redemption', async () => {
     const getRewardSpy = jest.spyOn(dataService, 'getReward')
-      .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
+      .mockResolvedValue({ name: 'Coffee Voucher', cost: 50 });
     
     jest.spyOn(dataService, 'getUserRecord')
-      .mockReturnValue({
+      .mockResolvedValue({
         total: 100,
         byValue: {},
         dailyGiven: 0,
@@ -78,7 +78,7 @@ describe('Reward Redemption Acceptance Tests', () => {
   });
   
   test('should fail if reward does not exist', async () => {
-    jest.spyOn(dataService, 'getReward').mockReturnValue(undefined);
+    jest.spyOn(dataService, 'getReward').mockResolvedValue(undefined);
     
     const result = await commandService.redeemReward(userId, 'Nonexistent Reward');
     
@@ -88,10 +88,10 @@ describe('Reward Redemption Acceptance Tests', () => {
   
   test('should handle redemption failure gracefully', async () => {
     jest.spyOn(dataService, 'getReward')
-      .mockReturnValue({ name: 'Coffee Voucher', cost: 50 });
+      .mockResolvedValue({ name: 'Coffee Voucher', cost: 50 });
     
     jest.spyOn(dataService, 'getUserRecord')
-      .mockReturnValue({
+      .mockResolvedValue({
         total: 100,
         byValue: {},
         dailyGiven: 0,

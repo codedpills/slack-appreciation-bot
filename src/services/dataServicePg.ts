@@ -2,6 +2,13 @@ import { Pool } from 'pg';
 import { IDataService } from './dataServiceInterface';
 import { AppState} from '../types';
 
+interface UserRecord {
+  total: number;
+  byValue: { [key: string]: number };
+  dailyGiven: number;
+  lastReset: string;
+}
+
 /**
  * Postgres-backed implementation of IDataService
  */
@@ -16,113 +23,137 @@ export function createDataService(): IDataService {
     rewards: [{ name: 'Coffee Voucher', cost: 50 }],
     label: 'points'
   };
-  const state: AppState = { config: { ...defaults }, users: {} };
+  // ensure tables exist
+  (async () => {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value JSONB NOT NULL);
+      CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, record JSONB NOT NULL);
+    `);
+  })().catch(console.error);
+
   const service: IDataService = {
-    getConfig: () => ({ ...state.config }),
+    getConfig: async () => {
+      const res = await pool.query('SELECT value FROM config WHERE key=$1', ['config']);
+      if (res.rowCount === 0) {
+        await pool.query('INSERT INTO config(key,value) VALUES($1,$2)', ['config', defaults]);
+        return { ...defaults };
+      }
+      return res.rows[0].value;
+    },
 
     updateConfig: async (newCfg) => {
-      state.config = { ...state.config, ...newCfg };
+      const cfg = await service.getConfig();
+      const merged = { ...cfg, ...newCfg };
       await pool.query(
         'INSERT INTO config(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2',
-        ['config', state.config]
+        ['config', merged]
       );
     },
 
     setDailyLimit: async (limit) => service.updateConfig({ dailyLimit: limit }),
 
     addValue: async (value) => {
+      const cfg = await service.getConfig();
       const v = value.toLowerCase().trim();
-      if (!state.config.values.includes(v)) {
-        state.config.values.push(v);
-        await service.updateConfig({ values: state.config.values });
+      if (!cfg.values.includes(v)) {
+        cfg.values.push(v);
+        await service.updateConfig({ values: cfg.values });
       }
     },
 
     removeValue: async (value) => {
+      const cfg = await service.getConfig();
       const v = value.toLowerCase().trim();
-      state.config.values = state.config.values.filter(x => x !== v);
-      await service.updateConfig({ values: state.config.values });
+      const values = cfg.values.filter(x => x !== v);
+      await service.updateConfig({ values });
     },
 
     addReward: async (name, cost) => {
-      const idx = state.config.rewards.findIndex(r => r.name === name);
-      if (idx >= 0) state.config.rewards[idx].cost = cost;
-      else state.config.rewards.push({ name, cost });
-      await service.updateConfig({ rewards: state.config.rewards });
+      const cfg = await service.getConfig();
+      const idx = cfg.rewards.findIndex(r => r.name === name);
+      if (idx >= 0) cfg.rewards[idx].cost = cost;
+      else cfg.rewards.push({ name, cost });
+      await service.updateConfig({ rewards: cfg.rewards });
     },
 
     removeReward: async (name) => {
-      state.config.rewards = state.config.rewards.filter(r => r.name !== name);
-      await service.updateConfig({ rewards: state.config.rewards });
+      const cfg = await service.getConfig();
+      const rewards = cfg.rewards.filter(r => r.name !== name);
+      await service.updateConfig({ rewards });
     },
 
-    getRewards: () => [...state.config.rewards],
+    getRewards: async () => {
+      const cfg = await service.getConfig();
+      return cfg.rewards;
+    },
 
-    getReward: (name) => state.config.rewards.find(r => r.name === name),
+    getReward: async (name) => {
+      const rewards = await service.getRewards();
+      return rewards.find(r => r.name === name);
+    },
 
-    getUserRecord: (userId) => {
-      if (!state.users[userId]) {
-        const today = new Date().toISOString().split('T')[0];
-        state.users[userId] = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
-        pool.query(
-          'INSERT INTO users(user_id,record) VALUES($1,$2)',
-          [userId, state.users[userId]]
-        ).catch(console.error);
+    getUserRecord: async (userId) => {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await pool.query('SELECT record FROM users WHERE user_id=$1', [userId]);
+      if (res.rowCount === 0) {
+        const record = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
+        await pool.query('INSERT INTO users(user_id,record) VALUES($1,$2)', [userId, record]);
+        return record;
       }
-      return { ...state.users[userId] };
+      return res.rows[0].record;
     },
 
-    getAllUsers: () => ({ ...state.users }),
+    getAllUsers: async () => {
+      const res = await pool.query('SELECT user_id,record FROM users');
+      return res.rows.reduce((acc, r) => ({ ...acc, [r.user_id]: r.record }), {} as Record<string, UserRecord>);
+    },
 
     resetUserPoints: async (userId) => {
       const today = new Date().toISOString().split('T')[0];
-      state.users[userId] = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
+      const record = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
       await pool.query(
         'INSERT INTO users(user_id,record) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET record=$2',
-        [userId, state.users[userId]]
+        [userId, record]
       );
     },
 
     recordRecognition: async (recog) => {
       const { giver, receiver, value, points } = recog;
       const today = new Date().toISOString().split('T')[0];
-      // process giver
-      let g = service.getUserRecord(giver);
-      if (g.lastReset !== today) { g.dailyGiven = 0; g.lastReset = today; }
-      g.dailyGiven += points;
-      state.users[giver] = g;
+      // giver side
+      let giverRec = await service.getUserRecord(giver);
+      if (giverRec.lastReset !== today) { giverRec.dailyGiven = 0; giverRec.lastReset = today; }
+      giverRec.dailyGiven += points;
       await pool.query(
         'INSERT INTO users(user_id,record) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET record=$2',
-        [giver, g]
+        [giver, giverRec]
       );
-      // process receiver
-      let r = service.getUserRecord(receiver);
-      r.total += points;
-      r.byValue[value] = (r.byValue[value] || 0) + points;
-      state.users[receiver] = r;
+      // receiver side
+      let recvRec = await service.getUserRecord(receiver);
+      recvRec.total += points;
+      recvRec.byValue[value] = (recvRec.byValue[value] || 0) + points;
       await pool.query(
         'INSERT INTO users(user_id,record) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET record=$2',
-        [receiver, r]
+        [receiver, recvRec]
       );
     },
 
-    canGivePoints: (userId, pts) => {
-      const u = service.getUserRecord(userId);
+    canGivePoints: async (userId, pts) => {
+      const rec = await service.getUserRecord(userId);
       const today = new Date().toISOString().split('T')[0];
-      if (u.lastReset !== today) return true;
-      return u.dailyGiven + pts <= state.config.dailyLimit;
+      if (rec.lastReset !== today) return true;
+      return rec.dailyGiven + pts <= (await service.getConfig()).dailyLimit;
     },
 
     redeemReward: async (userId, name) => {
-      const reward = service.getReward(name);
+      const reward = await service.getReward(name);
       if (!reward) return false;
-      let u = service.getUserRecord(userId);
-      if (u.total < reward.cost) return false;
-      u.total -= reward.cost;
-      state.users[userId] = u;
+      let rec = await service.getUserRecord(userId);
+      if (rec.total < reward.cost) return false;
+      rec.total -= reward.cost;
       await pool.query(
         'INSERT INTO users(user_id,record) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET record=$2',
-        [userId, u]
+        [userId, rec]
       );
       return true;
     },
@@ -133,23 +164,5 @@ export function createDataService(): IDataService {
     resetValues: async () => service.updateConfig({ values: ['teamwork'] }),
     setLabel: async (lbl) => service.updateConfig({ label: lbl }),
   };
-  // Async init: create tables and seed
-  (async () => {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value JSONB NOT NULL);
-      CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, record JSONB NOT NULL);
-    `);
-    // seed config and users based on state
-    await pool.query(
-      'INSERT INTO config(key,value) VALUES($1,$2) ON CONFLICT DO NOTHING',
-      ['config', state.config]
-    );
-    Object.entries(state.users).forEach(([id, rec]) => {
-      pool.query(
-        'INSERT INTO users(user_id,record) VALUES($1,$2) ON CONFLICT DO NOTHING',
-        [id, rec]
-      ).catch(console.error);
-    });
-  })().catch(console.error);
   return service;
 }
