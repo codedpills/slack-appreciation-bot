@@ -83,6 +83,14 @@ async function joinAllChannels(client: any) {
   }
 }
 
+// Helper to load full state in one call
+async function loadState() {
+  const users = await dataService.getAllUsers();
+  const config = await dataService.getConfig();
+  const rewards = await dataService.getRewards();
+  return { users, config, rewards };
+}
+
 app.message(async ({ message, say, client }) => {
   if (!('text' in message) || !('user' in message) || message.subtype === 'bot_message') return;
 
@@ -92,7 +100,8 @@ app.message(async ({ message, say, client }) => {
 
   // process and record recognitions, returning valid recognitions
   const recognitions = await recognitionService.processRecognitionsWithGroups(messageEvent.text, messageEvent.user, client);
-  const label = dataService.getConfig().label;
+  const config = await dataService.getConfig();
+  const label = config.label;
 
   for (const recognition of recognitions) {
     await say({
@@ -130,8 +139,11 @@ app.message(async ({ message, say, client }) => {
 });
 
 async function publishHomeView(client: any, userId: string) {
-  const users = dataService.getAllUsers();
-  const config = dataService.getConfig();
+  // load full state
+  const users = await dataService.getAllUsers();
+  const config = await dataService.getConfig();
+  const rewards = await dataService.getRewards();
+  const { values, dailyLimit, label } = config;
   const isAdmin = commandService.isAdmin(userId);
 
   // Validate userId format (Slack user IDs start with 'U' and are alphanumeric)
@@ -149,7 +161,7 @@ async function publishHomeView(client: any, userId: string) {
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, config.values, userId, 'Home', dataService.getRewards(), isAdmin, config.dailyLimit, config.label)
+      view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error publishing home view:', error);
@@ -157,7 +169,19 @@ async function publishHomeView(client: any, userId: string) {
 }
 
 app.event('app_home_opened', async ({ event, client }) => {
-  await publishHomeView(client, event.user);
+  const userId = (event as any).user;
+  const isAdmin = commandService.isAdmin(userId);
+  const users = await dataService.getAllUsers();
+  const config = await dataService.getConfig();
+  const rewards = await dataService.getRewards();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
+  // build and publish view using awaited data
+  await client.views.publish({
+    user_id: userId,
+    view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
+  });
 });
 
 app.command('/points', async ({ command, ack, respond, client }) => {
@@ -263,7 +287,7 @@ app.command('/points', async ({ command, ack, respond, client }) => {
   });
 
   if (result.success) {
-    const users = dataService.getAllUsers();
+    const users = await dataService.getAllUsers();
     for (const userId of Object.keys(users)) {
       try {
         await publishHomeView(client, userId);
@@ -282,8 +306,8 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
   const adminUsers = await getAdminUsers(client);
 
   if (!text.trim()) {
-    const rewards = dataService.getRewards();
-    const userRecord = dataService.getUserRecord(user_id);
+    const rewards = await dataService.getRewards();
+    const userRecord = await dataService.getUserRecord(user_id);
 
     try {
       await client.views.open({
@@ -312,7 +336,7 @@ app.command('/redeem', async ({ command, ack, respond, client }) => {
 
   if (result.success && result.data) {
     const { reward, user } = result.data;
-    const config = dataService.getConfig();
+    const config = await dataService.getConfig();
     const label = config.label;
 
     try {
@@ -366,6 +390,9 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
   if (result.success && result.data) {
     const { reward, user } = result.data;
 
+    const config = await dataService.getConfig();
+    const label = config.label;
+
     try {
       await client.chat.postMessage({
         channel: userId,
@@ -374,7 +401,7 @@ app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
           reward.cost,
           user.total - reward.cost
         ),
-        text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${dataService.getConfig().label}`
+        text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}`
       });
     } catch (error) {
       console.error('Error sending redemption confirmation:', error);
@@ -420,13 +447,16 @@ app.action('home_section_select', async ({ action, body, ack, client }) => {
   await ack();
   const selectedSection = (action as any).selected_option.value;
   const userId = (body as any).user.id;
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
+  // load latest state
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = commandService.isAdmin(userId);
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
+      view: buildHomeView(users, values, userId, selectedSection, rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error updating home view section:', error);
@@ -442,15 +472,17 @@ app.action('settings_reset_all', async ({ body, ack, client }) => {
   // Notify admin
   try {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
-  } catch { }
+  } catch {}
   // Refresh Home view in Settings
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset all:', error);
@@ -467,14 +499,15 @@ app.action('settings_reset_rewards', async ({ body, ack, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch {}
   // Refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset rewards:', error);
@@ -491,14 +524,15 @@ app.action('settings_reset_values', async ({ body, ack, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch {}
   // Refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after reset values:', error);
@@ -523,12 +557,14 @@ app.action(/redeem_store_.+/, async ({ action, body, ack, client, respond }) => 
     console.error('Error sending redemption feedback:', error);
   }
   // Refresh Home view in Goodies store section
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Goodies store', dataService.getRewards(), commandService.isAdmin(userId), dataService.getConfig().dailyLimit, dataService.getConfig().label)
+      view: buildHomeView(users, values, userId, 'Goodies store', rewards, commandService.isAdmin(userId), dailyLimit, label)
     });
   } catch (error) {
     console.error('Error refreshing Home view after redeem:', error);
@@ -581,11 +617,13 @@ app.view('settings_set_daily_limit_modal', async ({ ack, body, view, client }) =
     console.error('Error sending daily limit feedback:', error);
   }
   // refresh view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', dataService.getRewards(), isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after daily limit set:', error);
   }
@@ -635,12 +673,13 @@ app.view('settings_add_value_modal', async ({ ack, body, view, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch { }
   // refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after add value:', error);
   }
@@ -650,7 +689,9 @@ app.view('settings_add_value_modal', async ({ ack, body, view, client }) => {
 app.action('settings_remove_value', async ({ body, ack, client }) => {
   await ack();
   const userId = (body as any).user.id;
-  const currentValues = dataService.getConfig().values;
+  // load current config values
+  const { config } = await loadState();
+  const currentValues = config.values;
   try {
     await client.views.open({
       trigger_id: (body as any).trigger_id,
@@ -690,12 +731,13 @@ app.view('settings_remove_value_modal', async ({ ack, body, view, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch { }
   // refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after remove value:', error);
   }
@@ -736,12 +778,13 @@ app.view('settings_add_reward_modal', async ({ ack, body, view, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch {}
   // refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after add reward:', error);
   }
@@ -751,7 +794,9 @@ app.view('settings_add_reward_modal', async ({ ack, body, view, client }) => {
 app.action('settings_remove_reward', async ({ body, ack, client }) => {
   await ack();
   const userId = (body as any).user.id;
-  const currentRewards = dataService.getConfig().rewards.map(r => r.name);
+  // load current config rewards
+  const { config } = await loadState();
+  const currentRewards = config.rewards.map(r => r.name);
   try {
     await client.views.open({
       trigger_id: (body as any).trigger_id,
@@ -785,12 +830,13 @@ app.view('settings_remove_reward_modal', async ({ ack, body, view, client }) => 
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch { }
   // refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after remove reward:', error);
   }
@@ -829,12 +875,13 @@ app.view('settings_reset_user_modal', async ({ ack, body, view, client }) => {
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
   } catch { }
   // refresh Settings view
-  const users = dataService.getAllUsers();
-  const values = dataService.getConfig().values;
-  const rewards = dataService.getRewards();
+  const { users, config, rewards } = await loadState();
+  const values = config.values;
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dataService.getConfig().dailyLimit, dataService.getConfig().label) });
+    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label) });
   } catch (error) {
     console.error('Error refreshing view after reset user:', error);
   }
@@ -884,15 +931,15 @@ app.view('settings_set_label_modal', async ({ ack, body, view, client }) => {
     console.error('Error sending label feedback:', error);
   }
   // Refresh Settings view with updated label
-  const users = dataService.getAllUsers();
-  const config = dataService.getConfig();
+  const { users, config, rewards } = await loadState();
   const values = config.values;
-  const rewards = dataService.getRewards();
+  const dailyLimit = config.dailyLimit;
+  const label = config.label;
   const isAdmin = true;
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, config.dailyLimit, config.label)
+      view: buildHomeView(users, values, userId, 'Settings', rewards, isAdmin, dailyLimit, label)
     });
   } catch (error) {
     console.error('Error refreshing Settings view after label set:', error);
