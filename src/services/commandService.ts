@@ -190,7 +190,7 @@ export class CommandService {
       return { success: false, message: 'Only admins can reset all points.' };
     }
 
-    const users = this.dataService.getAllUsers();
+    const users = await this.dataService.getAllUsers();
     for (const userId of Object.keys(users)) {
       await this.dataService.resetUserPoints(userId);
     }
@@ -199,7 +199,7 @@ export class CommandService {
   }
 
   async redeemReward(userId: string, rewardName: string): Promise<CommandResult> {
-    const reward = this.dataService.getReward(rewardName);
+    const reward = await this.dataService.getReward(rewardName);
     
     if (!reward) {
       return {
@@ -208,7 +208,7 @@ export class CommandService {
       };
     }
     
-    const user = this.dataService.getUserRecord(userId);
+    const user = await this.dataService.getUserRecord(userId);
     
     if (user.total < reward.cost) {
       return {

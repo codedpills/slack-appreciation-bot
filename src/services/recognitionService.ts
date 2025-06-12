@@ -15,7 +15,7 @@ export class RecognitionService {
    * Process a recognition from a message
    * Returns null if no valid recognition was found
    */
-  parseRecognition(text: string, giverId: string): Recognition | null {
+  async parseRecognition(text: string, giverId: string): Promise<Recognition | null> {
     // Removed debug logs and redundant comments for tidiness
     const regex = /<@([A-Z0-9]+)>\s*(\+{1,})\s*(.*?)(?:\s*#(\w+))?$/i;
     const match = text.match(regex);
@@ -32,7 +32,7 @@ export class RecognitionService {
 
     if (receiverId === giverId) return null;
 
-    const config = this.dataService.getConfig();
+    const config = await this.dataService.getConfig();
     if (!config.values.includes(value) && value !== 'general') {
       return null;
     }
@@ -49,12 +49,13 @@ export class RecognitionService {
     };
   }
 
-  parseRecognitions(text: string, giverId: string): Recognition[] {
+  async parseRecognitions(text: string, giverId: string): Promise<Recognition[]> {
     // match one or more user mentions, plus count, reason, optional #value, up to next mention or end
     const regex = /((?:<@[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#(\w+))?(?=\s*(?:<@)|$)/gi;
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];
+    const config = await this.dataService.getConfig();
 
     for (const match of matches) {
       const [_, mentionGroup, plusSymbols, reasonText, valueTag] = match;
@@ -67,8 +68,6 @@ export class RecognitionService {
 
         const reason = reasonText.trim();
         const value = valueTag ? valueTag.toLowerCase().trim() : 'general';
-
-        const config = this.dataService.getConfig();
         // allow 'general' even if not in config.values
         if (value !== 'general' && !config.values.includes(value)) continue;
 
@@ -108,6 +107,7 @@ export class RecognitionService {
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];
+    const config = await this.dataService.getConfig();
 
     for (const match of matches) {
       const [_, mentionGroup, plusSymbols, reasonText, valueTag] = match;
@@ -130,8 +130,6 @@ export class RecognitionService {
 
         const reason = reasonText.trim();
         const value = valueTag ? valueTag.toLowerCase().trim() : 'general';
-
-        const config = this.dataService.getConfig();
         if (value !== 'general' && !config.values.includes(value)) continue;
 
         const points = plusSymbols.length;
@@ -155,10 +153,10 @@ export class RecognitionService {
    * Returns whether the recognition was processed successfully
    */
   async processRecognition(text: string, giverId: string): Promise<Recognition | null> {
-    const recognition = this.parseRecognition(text, giverId);
+    const recognition = await this.parseRecognition(text, giverId);
     if (!recognition) return null;
 
-    if (!this.dataService.canGivePoints(giverId, recognition.points)) {
+    if (!(await this.dataService.canGivePoints(giverId, recognition.points))) {
       return null;
     }
 
@@ -168,11 +166,11 @@ export class RecognitionService {
   }
 
   async processRecognitions(text: string, giverId: string): Promise<Recognition[]> {
-    const recognitions = this.parseRecognitions(text, giverId);
+    const recognitions = await this.parseRecognitions(text, giverId);
     const validRecognitions: Recognition[] = [];
 
     for (const recognition of recognitions) {
-      if (!this.dataService.canGivePoints(giverId, recognition.points)) {
+      if (!(await this.dataService.canGivePoints(giverId, recognition.points))) {
         continue;
       }
 

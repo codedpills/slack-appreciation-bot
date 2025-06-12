@@ -27,7 +27,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   
   test('should award points when a valid recognition message is posted', async () => {
     // Mock canGivePoints to always return true for testing
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
@@ -55,7 +55,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
   
   test('should validate against stored company values', async () => {
-    jest.spyOn(dataService, 'getConfig').mockReturnValue({
+    jest.spyOn(dataService, 'getConfig').mockResolvedValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation'],
       rewards: [],
@@ -67,8 +67,8 @@ describe('Recognition Flow Acceptance Tests', () => {
     const invalidText = '<@USER123> +++ helped me debug #nonexistentvalue';
     const giverId = 'USER456';
     
-    const validRecognition = recognitionService.parseRecognition(validText, giverId);
-    const invalidRecognition = recognitionService.parseRecognition(invalidText, giverId);
+    const validRecognition = await recognitionService.parseRecognition(validText, giverId);
+    const invalidRecognition = await recognitionService.parseRecognition(invalidText, giverId);
     
     // Valid value should be recognized
     expect(validRecognition).not.toBeNull();
@@ -81,8 +81,8 @@ describe('Recognition Flow Acceptance Tests', () => {
   test('should enforce daily limits', async () => {
     // First, mock canGivePoints to return true then false after limit
     const canGivePointsSpy = jest.spyOn(dataService, 'canGivePoints')
-      .mockImplementationOnce(() => true)  
-      .mockImplementationOnce(() => false); 
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
     
     const recordSpy = jest.spyOn(dataService, 'recordRecognition')
       .mockImplementation(async () => {});
@@ -108,14 +108,14 @@ describe('Recognition Flow Acceptance Tests', () => {
     const text = '<@USER123> +++ trying to game the system #innovation';
     const sameSelfId = 'USER123'; // Same as receiver
     
-    const recognition = recognitionService.parseRecognition(text, sameSelfId);
+    const recognition = await recognitionService.parseRecognition(text, sameSelfId);
     
     // Self-recognition should be rejected
     expect(recognition).toBeNull();
   });
   
-  test('should properly parse message for recognition', () => {
-    jest.spyOn(dataService, 'getConfig').mockReturnValue({
+  test('should properly parse message for recognition', async () => {
+    jest.spyOn(dataService, 'getConfig').mockResolvedValue({
       dailyLimit: 5,
       values: ['teamwork', 'innovation', 'creativity'],
       rewards: [],
@@ -138,20 +138,20 @@ describe('Recognition Flow Acceptance Tests', () => {
     
     // Valid formats should be recognized
     for (const text of validFormats) {
-      const recognition = recognitionService.parseRecognition(text, giverId);
+      const recognition = await recognitionService.parseRecognition(text, giverId);
       expect(recognition).not.toBeNull();
       expect(recognition?.receiver).toBe('USER123');
     }
     
     // Invalid formats should be rejected
     for (const text of invalidFormats) {
-      const recognition = recognitionService.parseRecognition(text, giverId);
+      const recognition = await recognitionService.parseRecognition(text, giverId);
       expect(recognition).toBeNull();
     }
   });
 
   test('should award points based on the number of + symbols', async () => {
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
     const text = '<@USER123> ++ great work #teamwork';
@@ -165,7 +165,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
 
   test('should handle multiple recognitions in a single message', async () => {
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
     const text = '<@USER123> ++ great work #teamwork <@USER456> +++ amazing effort #teamwork';
@@ -191,7 +191,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
 
   test('should handle group recognition', async () => {
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     jest.spyOn(recognitionService, 'resolveGroupMembers').mockResolvedValue(['USER123', 'USER456']);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
@@ -222,7 +222,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
 
   test('should default to general when no #value tag is provided (single recognition)', async () => {
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
     const text = '<@USER123> +++ helped me debug';
@@ -235,7 +235,7 @@ describe('Recognition Flow Acceptance Tests', () => {
   });
 
   test('should default to general for multi-recognition without #value tag', async () => {
-    jest.spyOn(dataService, 'canGivePoints').mockReturnValue(true);
+    jest.spyOn(dataService, 'canGivePoints').mockResolvedValue(true);
     const recordSpy = jest.spyOn(dataService, 'recordRecognition').mockImplementation(async () => {});
 
     const text = '<@USER123> ++ well done <@USER789> + great job';

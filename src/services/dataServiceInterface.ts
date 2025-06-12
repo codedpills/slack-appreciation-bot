@@ -7,7 +7,7 @@ export interface IDataService {
   /**
    * Retrieve application configuration
    */
-  getConfig(): AppState['config'];
+  getConfig(): Promise<AppState['config']>;
 
   /**
    * Update multiple config fields
@@ -42,22 +42,22 @@ export interface IDataService {
   /**
    * List all rewards
    */
-  getRewards(): Reward[];
+  getRewards(): Promise<Reward[]>;
 
   /**
    * Get a specific reward
    */
-  getReward(name: string): Reward | undefined;
+  getReward(name: string): Promise<Reward | undefined>;
 
   /**
    * Fetch or initialize a user record
    */
-  getUserRecord(userId: string): UserRecord;
+  getUserRecord(userId: string): Promise<UserRecord>;
 
   /**
    * List all user records
    */
-  getAllUsers(): Record<string, UserRecord>;
+  getAllUsers(): Promise<Record<string, UserRecord>>;
 
   /**
    * Reset a specific user's points
@@ -72,7 +72,7 @@ export interface IDataService {
   /**
    * Check if user can give points
    */
-  canGivePoints(userId: string, points: number): boolean;
+  canGivePoints(userId: string, points: number): Promise<boolean>;
 
   /**
    * Redeem a reward

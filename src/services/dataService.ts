@@ -1,11 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { AppState, Recognition, UserRecord, Reward } from '../types';
+import { IDataService } from './dataServiceInterface';
 
 /**
  * Service for data storage and retrieval
  */
-export class DataService {
+export class DataService implements IDataService {
   private dataFilePath: string;
   private state: AppState;
 
@@ -78,7 +79,7 @@ export class DataService {
   /**
    * Get app configuration
    */
-  getConfig() {
+  async getConfig(): Promise<AppState['config']> {
     return { ...this.state.config };
   }
 
@@ -150,21 +151,21 @@ export class DataService {
   /**
    * Get all rewards
    */
-  getRewards(): Reward[] {
+  async getRewards(): Promise<Reward[]> {
     return [...this.state.config.rewards];
   }
 
   /**
    * Get reward by name
    */
-  getReward(name: string): Reward | undefined {
+  async getReward(name: string): Promise<Reward | undefined> {
     return this.state.config.rewards.find(r => r.name === name);
   }
 
   /**
    * Get user record
    */
-  getUserRecord(userId: string): UserRecord {
+  async getUserRecord(userId: string): Promise<UserRecord> {
     // If user doesn't exist, create a new record
     if (!this.state.users[userId]) {
       const today = new Date().toISOString().split('T')[0];
@@ -182,7 +183,7 @@ export class DataService {
   /**
    * Get all user records
    */
-  getAllUsers(): Record<string, UserRecord> {
+  async getAllUsers(): Promise<Record<string, UserRecord>> {
     return { ...this.state.users };
   }
 
@@ -255,9 +256,9 @@ export class DataService {
   /**
    * Check if a user can give points
    */
-  canGivePoints(userId: string, points: number): boolean {
+  async canGivePoints(userId: string, points: number): Promise<boolean> {
     const today = new Date().toISOString().split('T')[0];
-    const user = this.getUserRecord(userId);
+    const user = await this.getUserRecord(userId);
 
     // Reset daily given if it's a new day
     if (user.lastReset !== today) {
@@ -271,10 +272,10 @@ export class DataService {
    * Redeem reward for a user
    */
   async redeemReward(userId: string, rewardName: string): Promise<boolean> {
-    const reward = this.getReward(rewardName);
+    const reward = await this.getReward(rewardName);
     if (!reward) return false;
 
-    const user = this.getUserRecord(userId);
+    const user = await this.getUserRecord(userId);
     if (user.total < reward.cost) return false;
 
     // Deduct points
@@ -347,6 +348,6 @@ export class DataService {
   }
 }
 
-export const createDataService = (dataFilePath: string): DataService => {
+export const createDataService = (dataFilePath: string): IDataService => {
   return new DataService(dataFilePath);
 };
