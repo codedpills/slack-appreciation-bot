@@ -121,7 +121,7 @@ export function createDataService(): IDataService {
       const { giver, receiver, value, points } = recog;
       const today = new Date().toISOString().split('T')[0];
       // giver side
-      let giverRec = await service.getUserRecord(giver);
+      const giverRec = await service.getUserRecord(giver);
       if (giverRec.lastReset !== today) { giverRec.dailyGiven = 0; giverRec.lastReset = today; }
       giverRec.dailyGiven += points;
       await pool.query(
@@ -129,7 +129,7 @@ export function createDataService(): IDataService {
         [giver, giverRec]
       );
       // receiver side
-      let recvRec = await service.getUserRecord(receiver);
+      const recvRec = await service.getUserRecord(receiver);
       recvRec.total += points;
       recvRec.byValue[value] = (recvRec.byValue[value] || 0) + points;
       await pool.query(
@@ -148,7 +148,7 @@ export function createDataService(): IDataService {
     redeemReward: async (userId, name) => {
       const reward = await service.getReward(name);
       if (!reward) return false;
-      let rec = await service.getUserRecord(userId);
+      const rec = await service.getUserRecord(userId);
       if (rec.total < reward.cost) return false;
       rec.total -= reward.cost;
       await pool.query(
@@ -158,7 +158,9 @@ export function createDataService(): IDataService {
       return true;
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     saveData: async () => {},
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     normalizeUserIds: async () => {},
     resetRewards: async () => service.updateConfig({ rewards: [] }),
     resetValues: async () => service.updateConfig({ values: ['teamwork'] }),

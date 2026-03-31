@@ -21,21 +21,23 @@ export function registerCommandHandlers(
     let result;
     // dispatch subcommands
     switch (subCommand) {
-      case 'config':
+      case 'config': {
         const cfgCmd = args[1]?.toLowerCase();
         switch (cfgCmd) {
           case 'daily_limit': result = await commandService.setDailyLimit(user_id, args[2]); break;
           case 'add_value': result = await commandService.addValue(user_id, args[2]); break;
           case 'remove_value': result = await commandService.removeValue(user_id, args[2]); break;
-          case 'label':
+          case 'label': {
             const newLabel = args.slice(2).join(' ');
             result = await commandService.setLabel(user_id, newLabel);
             break;
+          }
           default:
             result = { success: false, message: 'Invalid config command. Available: daily_limit, add_value, remove_value, label' };
         }
         break;
-      case 'reward':
+      }
+      case 'reward': {
         const rwCmd = args[1]?.toLowerCase();
         switch (rwCmd) {
           case 'add': {
@@ -52,6 +54,7 @@ export function registerCommandHandlers(
             result = { success: false, message: 'Invalid reward command. Available: add, remove' };
         }
         break;
+      }
       case 'reset':
         if (args[1]?.toLowerCase() === 'all') {
           result = await commandService.resetAllPoints(user_id);
