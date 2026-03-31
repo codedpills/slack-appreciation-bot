@@ -7,11 +7,11 @@ export const buildHomeView = (
   users: Record<string, UserRecord>,
   values: string[],
   userId: string,
-  selectedSection: string = 'Home',
+  selectedSection = 'Home',
   rewards: Reward[] = [],
-  isAdmin: boolean = false,
-  dailyLimit: number = 0,
-  label: string = 'points'
+  isAdmin = false,
+  dailyLimit = 0,
+  label = 'points'
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
