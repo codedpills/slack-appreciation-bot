@@ -1,20 +1,20 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsersCached, loadState, publishHomeView } from '../utils';
+import { loadState, publishHomeView } from '../utils';
+import { AdminCacheService } from '../services/adminCacheService';
 import { buildHomeView } from '../views/homeView';
 
 export function registerHomeHandlers(
   app: App,
   dataService: IDataService,
-  commandService: CommandService
+  commandService: CommandService,
+  adminCacheService: AdminCacheService
 ) {
-  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
-
   app.event('app_home_opened', async ({ event, client }) => {
     const userId = (event as any).user;
     const workspaceId = (event as any).team || (event as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards } = await loadState(dataService, workspaceId);
@@ -30,7 +30,7 @@ export function registerHomeHandlers(
     const selectedSection = (action as any).selected_option.value;
     const userId = (body as any).user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards } = await loadState(dataService, workspaceId);

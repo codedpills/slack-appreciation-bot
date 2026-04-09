@@ -1,7 +1,8 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsersCached, loadState, publishHomeView } from '../utils';
+import { loadState, publishHomeView } from '../utils';
+import { AdminCacheService } from '../services/adminCacheService';
 import {
   buildRedeemModal,
   buildRedemptionConfirmation,
@@ -11,15 +12,14 @@ import {
 export function registerCommandHandlers(
   app: App,
   dataService: IDataService,
-  commandService: CommandService
+  commandService: CommandService,
+  adminCacheService: AdminCacheService
 ) {
-  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
-
   app.command('/points', async ({ command, ack, respond, client }) => {
     await ack();
     const { text, user_id } = command;
     const workspaceId = command.team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const args = text.trim().split(/\s+/);
     const subCommand = args[0]?.toLowerCase();
@@ -85,7 +85,7 @@ export function registerCommandHandlers(
     await ack();
     const { text, user_id } = command;
     const workspaceId = command.team_id || 'default';
-    const adminUsers = await getAdminUsersCached(client, workspaceId, adminCache);
+    const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, adminUsers);
     if (!text.trim()) {
       const rewards = await dataService.getRewards(workspaceId);
@@ -137,7 +137,7 @@ export function registerCommandHandlers(
       const config = await dataService.getConfig(workspaceId);
       const label = config.label;
       await client.chat.postMessage({ channel: userId, blocks: buildRedemptionConfirmation(reward.name, reward.cost, user.total - reward.cost), text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}` });
-      const adminUsers = await getAdminUsersCached(client, workspaceId, adminCache);
+      const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
       commandService.setWorkspaceAdmins(workspaceId, adminUsers);
       for (const aid of adminUsers) {
         await client.chat.postMessage({ channel: aid, blocks: buildAdminRedemptionNotification(userId, reward.name, reward.cost), text: `Notification: ${userId} redeemed ${reward.name}` });

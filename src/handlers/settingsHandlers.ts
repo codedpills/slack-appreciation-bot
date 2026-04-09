@@ -1,22 +1,22 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsersCached, loadState } from '../utils';
+import { loadState } from '../utils';
+import { AdminCacheService } from '../services/adminCacheService';
 import { buildHomeView } from '../views/homeView';
 
 export function registerSettingsHandlers(
   app: App,
   dataService: IDataService,
   commandService: CommandService,
+  adminCacheService: AdminCacheService,
 ) {
-  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
-
   // Reset All Points
   app.action('settings_reset_all', async ({ body, ack, client }) => {
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     await commandService.resetAllPoints(userId, workspaceId);
@@ -31,7 +31,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetRewards(userId, workspaceId);
@@ -46,7 +46,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetValues(userId, workspaceId);
@@ -88,7 +88,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can change the daily limit.' });
@@ -134,7 +134,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can add company values.' });
@@ -182,7 +182,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can remove company values.' });
@@ -220,7 +220,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can add rewards.' });
@@ -259,7 +259,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can remove rewards.' });
@@ -296,7 +296,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can reset points.' });
@@ -338,7 +338,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can set the points label.' });

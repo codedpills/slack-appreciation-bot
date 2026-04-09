@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createDataService } from './services/dataServicePg';
 import { createRecognitionService } from './services/recognitionService';
 import { createCommandService } from './services/commandService';
+import { AdminCacheService } from './services/adminCacheService';
 import { registerRecognitionHandlers } from './handlers/recognitionHandlers';
 import { registerCommandHandlers } from './handlers/commandHandlers';
 import { registerHomeHandlers } from './handlers/homeHandlers';
@@ -15,6 +16,7 @@ dotenv.config();
 const dataService = createDataService();
 const recognitionService = createRecognitionService(dataService);
 let commandService = createCommandService(dataService, []);
+const adminCacheService = new AdminCacheService();
 
 const scopes = (process.env.SLACK_SCOPES || '')
   .split(',')
@@ -114,9 +116,9 @@ app.use(async ({ next }) => {
 });
 
 registerRecognitionHandlers(app, recognitionService, dataService, commandService);
-registerHomeHandlers(app, dataService, commandService);
-registerCommandHandlers(app, dataService, commandService);
-registerSettingsHandlers(app, dataService, commandService);
+registerHomeHandlers(app, dataService, commandService, adminCacheService);
+registerCommandHandlers(app, dataService, commandService, adminCacheService);
+registerSettingsHandlers(app, dataService, commandService, adminCacheService);
 
 (async () => {
   if (process.env.SLACK_BOT_TOKEN) {

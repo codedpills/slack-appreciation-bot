@@ -26,28 +26,6 @@ export async function getAdminUsers(client: any): Promise<string[]> {
   }
 }
 
-export type AdminCacheEntry = {
-  admins: string[];
-  cachedAt: number;
-};
-
-export async function getAdminUsersCached(
-  client: any,
-  workspaceId: string,
-  cache: Map<string, AdminCacheEntry>,
-  ttlMs = 5 * 60 * 1000
-): Promise<string[]> {
-  const now = Date.now();
-  const cached = cache.get(workspaceId);
-  if (cached && now - cached.cachedAt < ttlMs) {
-    return cached.admins;
-  }
-
-  const admins = await getAdminUsers(client);
-  cache.set(workspaceId, { admins, cachedAt: now });
-  return admins;
-}
-
 export async function joinAllChannels(client: any) {
   try {
     let cursor: string | undefined;
