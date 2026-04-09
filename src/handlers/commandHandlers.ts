@@ -4,11 +4,7 @@ import { CommandService } from '../services/commandService';
 import { loadState, publishHomeView } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
 import { CommandRouter } from '../services/commandRouter';
-import {
-  buildRedeemModal,
-  buildRedemptionConfirmation,
-  buildAdminRedemptionNotification
-} from '../views/homeView';
+import { RedemptionService } from '../services/redemptionService';
 
 export function registerCommandHandlers(
   app: App,
@@ -17,6 +13,7 @@ export function registerCommandHandlers(
   adminCacheService: AdminCacheService
 ) {
   const router = new CommandRouter(commandService);
+  const redemptionService = new RedemptionService(dataService, commandService);
 
   app.command('/points', async ({ command, ack, respond, client }) => {
     await ack();
@@ -41,36 +38,15 @@ export function registerCommandHandlers(
     const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, adminUsers);
     if (!text.trim()) {
-      const rewards = await dataService.getRewards(workspaceId);
-      const userRecord = await dataService.getUserRecord(user_id, workspaceId);
-      try {
-        await client.views.open({ trigger_id: command.trigger_id, view: buildRedeemModal(rewards, userRecord.total) });
-      } catch (e) {
-        console.error('Error opening redeem modal:', e);
+      const opened = await redemptionService.openRedeemModal(client, user_id, command.trigger_id, workspaceId);
+      if (!opened) {
         await respond({ text: 'Could not open redeem modal.', response_type: 'ephemeral' });
       }
       return;
     }
-    const match = text.match(/"([^"]+)"/);
-    const rewardName = match ? match[1] : text.trim();
-    const result = await commandService.redeemReward(user_id, rewardName, workspaceId);
+    const result = await redemptionService.redeemRewardFromText(client, user_id, text, workspaceId, adminUsers);
     await respond({ text: result.message, response_type: 'ephemeral' });
     if (result.success && result.data) {
-      const { reward, user } = result.data;
-      const config = await dataService.getConfig(workspaceId);
-      const label = config.label;
-      try {
-        await client.chat.postMessage({
-          channel: user_id,
-          blocks: buildRedemptionConfirmation(reward.name, reward.cost, user.total - reward.cost),
-          text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}`
-        });
-      } catch {}
-      for (const aid of adminUsers) {
-        try {
-          await client.chat.postMessage({ channel: aid, blocks: buildAdminRedemptionNotification(user_id, reward.name, reward.cost), text: `Notification: ${user_id} redeemed ${reward.name}` });
-        } catch {}
-      }
       await publishHomeView(client, user_id, dataService, commandService, workspaceId);
     }
   });
@@ -84,17 +60,10 @@ export function registerCommandHandlers(
       await client.chat.postMessage({ channel: userId, text: 'No selection made' });
       return;
     }
-    const result = await commandService.redeemReward(userId, selected.value, workspaceId);
+    const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
+    commandService.setWorkspaceAdmins(workspaceId, adminUsers);
+    const result = await redemptionService.redeemReward(client, userId, selected.value, workspaceId, adminUsers);
     if (result.success && result.data) {
-      const { reward, user } = result.data;
-      const config = await dataService.getConfig(workspaceId);
-      const label = config.label;
-      await client.chat.postMessage({ channel: userId, blocks: buildRedemptionConfirmation(reward.name, reward.cost, user.total - reward.cost), text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}` });
-      const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
-      commandService.setWorkspaceAdmins(workspaceId, adminUsers);
-      for (const aid of adminUsers) {
-        await client.chat.postMessage({ channel: aid, blocks: buildAdminRedemptionNotification(userId, reward.name, reward.cost), text: `Notification: ${userId} redeemed ${reward.name}` });
-      }
       await publishHomeView(client, userId, dataService, commandService, workspaceId);
     } else {
       await client.chat.postMessage({ channel: userId, text: result.message });
