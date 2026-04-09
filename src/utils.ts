@@ -2,12 +2,11 @@ import { App } from '@slack/bolt';
 import { IDataService } from './services/dataServiceInterface';
 import { CommandService } from './services/commandService';
 import { buildHomeViewFromContext } from './views/homeView';
+import { StateLoader } from './services/stateLoader';
 
 export async function loadState(dataService: IDataService, workspaceId?: string) {
-  const users = await dataService.getAllUsers(workspaceId);
-  const config = await dataService.getConfig(workspaceId);
-  const rewards = await dataService.getRewards(workspaceId);
-  return { users, config, rewards };
+  const loader = new StateLoader(dataService);
+  return loader.loadState(workspaceId);
 }
 
 export async function getAdminUsers(client: any): Promise<string[]> {
@@ -51,7 +50,8 @@ export async function publishHomeView(
   commandService: CommandService,
   workspaceId?: string
 ) {
-  const { users, config, rewards } = await loadState(dataService, workspaceId);
+  const loader = new StateLoader(dataService);
+  const { users, config, rewards, currentUser } = await loader.loadHomeState(userId, workspaceId);
   const { values, dailyLimit, label } = config;
   const isAdmin = commandService.isAdmin(userId, workspaceId);
   if (!/^U[A-Z0-9]+$/.test(userId) || !users[userId]) {
@@ -67,7 +67,8 @@ export async function publishHomeView(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin
+        isAdmin,
+        currentUser
       })
     });
   } catch (error) {

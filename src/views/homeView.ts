@@ -7,6 +7,7 @@ export type ViewContext = {
   rewards: Reward[];
   config: Pick<AppConfig, 'values' | 'dailyLimit' | 'label'>;
   isAdmin: boolean;
+  currentUser?: UserRecord;
 };
 
 export const buildHomeViewFromContext = (ctx: ViewContext) => {
@@ -18,7 +19,8 @@ export const buildHomeViewFromContext = (ctx: ViewContext) => {
     ctx.rewards,
     ctx.isAdmin,
     ctx.config.dailyLimit,
-    ctx.config.label
+    ctx.config.label,
+    ctx.currentUser
   );
 };
 
@@ -33,7 +35,8 @@ export const buildHomeView = (
   rewards: Reward[] = [],
   isAdmin = false,
   dailyLimit = 0,
-  label = 'points'
+  label = 'points',
+  currentUser?: UserRecord
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -41,7 +44,7 @@ export const buildHomeView = (
 
   // Get the current user's position
   const currentUserPosition = userEntries.findIndex(entry => entry.id === userId);
-  const currentUserData = users[userId] || { total: 0, byValue: {}, dailyGiven: 0, lastReset: '' };
+  const currentUserData = currentUser || users[userId] || { total: 0, byValue: {}, dailyGiven: 0, lastReset: '' };
 
   // Header with dropdown select
   const options: any[] = [

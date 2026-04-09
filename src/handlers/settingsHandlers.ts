@@ -4,6 +4,7 @@ import { CommandService } from '../services/commandService';
 import { loadState } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
 import { buildHomeViewFromContext } from '../views/homeView';
+import { StateLoader } from '../services/stateLoader';
 
 export function registerSettingsHandlers(
   app: App,
@@ -11,6 +12,8 @@ export function registerSettingsHandlers(
   commandService: CommandService,
   adminCacheService: AdminCacheService,
 ) {
+  const stateLoader = new StateLoader(dataService);
+
   // Reset All Points
   app.action('settings_reset_all', async ({ body, ack, client }) => {
     await ack();
@@ -21,7 +24,7 @@ export function registerSettingsHandlers(
     if (!commandService.isAdmin(userId, workspaceId)) return;
     await commandService.resetAllPoints(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -31,7 +34,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -46,7 +50,7 @@ export function registerSettingsHandlers(
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetRewards(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -56,7 +60,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -71,7 +76,7 @@ export function registerSettingsHandlers(
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetValues(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -81,7 +86,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -127,7 +133,7 @@ export function registerSettingsHandlers(
     const limitValue = view.state.values.daily_limit_block.daily_limit_input.value || "";
     const result = await commandService.setDailyLimit(userId, limitValue, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -137,7 +143,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -183,7 +190,7 @@ export function registerSettingsHandlers(
     const value = view.state.values.add_value_block.add_value_input.value || "";
     const result = await commandService.addValue(userId, value, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -193,7 +200,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -241,7 +249,7 @@ export function registerSettingsHandlers(
     const selected = view.state.values.remove_value_block.remove_value_select.selected_option?.value;
     const result = await commandService.removeValue(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -251,7 +259,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -290,7 +299,7 @@ export function registerSettingsHandlers(
     const cost = view.state.values.reward_cost_block.reward_cost_input.value || '';
     const result = await commandService.addReward(userId, name, cost, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -300,7 +309,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -338,7 +348,7 @@ export function registerSettingsHandlers(
     const selected = view.state.values.remove_reward_block.remove_reward_select.selected_option?.value;
     const result = await commandService.removeReward(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -348,7 +358,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
@@ -385,7 +396,7 @@ export function registerSettingsHandlers(
     const target = view.state.values.reset_user_block.reset_user_input.value || '';
     const result = await commandService.resetPoints(userId, target, client, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
@@ -395,7 +406,8 @@ export function registerSettingsHandlers(
         users,
         rewards,
         config: { values, dailyLimit, label },
-        isAdmin: true
+        isAdmin: true,
+        currentUser
       })
     });
   });
