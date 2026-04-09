@@ -1,4 +1,4 @@
-import { IDataService } from './dataServiceInterface';
+import { IDataReader } from './dataServiceInterface';
 import { Recognition } from '../types';
 
 export type GroupResolver = {
@@ -6,10 +6,10 @@ export type GroupResolver = {
 };
 
 export class RecognitionPipeline {
-  private dataService: IDataService;
+  private dataService: IDataReader;
   private groupResolver: GroupResolver;
 
-  constructor(dataService: IDataService, groupResolver: GroupResolver) {
+  constructor(dataService: IDataReader, groupResolver: GroupResolver) {
     this.dataService = dataService;
     this.groupResolver = groupResolver;
   }

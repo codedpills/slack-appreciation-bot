@@ -1,4 +1,4 @@
-import { IDataService } from './dataServiceInterface';
+import { IDataReader, IDataService, IDataWriter } from './dataServiceInterface';
 import { Recognition } from '../types';
 import { RecognitionPipeline } from './recognitionPipeline';
 
@@ -6,12 +6,14 @@ import { RecognitionPipeline } from './recognitionPipeline';
  * Service for handling recognitions
  */
 export class RecognitionService {
-  private dataService: IDataService;
+  private reader: IDataReader;
+  private writer: IDataWriter;
   private pipeline: RecognitionPipeline;
 
-  constructor(dataService: IDataService) {
-    this.dataService = dataService;
-    this.pipeline = new RecognitionPipeline(dataService, {
+  constructor(reader: IDataReader, writer: IDataWriter) {
+    this.reader = reader;
+    this.writer = writer;
+    this.pipeline = new RecognitionPipeline(reader, {
       resolveGroupMembers: (client, groupId) => this.resolveGroupMembers(client, groupId)
     });
   }
@@ -37,7 +39,7 @@ export class RecognitionService {
 
     if (receiverId === giverId) return null;
 
-    const config = await this.dataService.getConfig(workspaceId);
+    const config = await this.reader.getConfig(workspaceId);
     if (!config.values.includes(value) && value !== 'general') {
       return null;
     }
@@ -60,7 +62,7 @@ export class RecognitionService {
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];
-    const config = await this.dataService.getConfig(workspaceId);
+    const config = await this.reader.getConfig(workspaceId);
 
     for (const match of matches) {
       const [_, mentionGroup, plusSymbols, reasonText, valueTag] = match;
@@ -118,11 +120,11 @@ export class RecognitionService {
     const recognition = await this.parseRecognition(text, giverId, workspaceId);
     if (!recognition) return null;
 
-    if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
+    if (!(await this.reader.canGivePoints(giverId, recognition.points, workspaceId))) {
       return null;
     }
 
-    await this.dataService.recordRecognition(recognition, workspaceId);
+    await this.writer.recordRecognition(recognition, workspaceId);
 
     return recognition;
   }
@@ -132,11 +134,11 @@ export class RecognitionService {
     const validRecognitions: Recognition[] = [];
 
     for (const recognition of recognitions) {
-      if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
+      if (!(await this.reader.canGivePoints(giverId, recognition.points, workspaceId))) {
         continue;
       }
 
-      await this.dataService.recordRecognition(recognition, workspaceId);
+      await this.writer.recordRecognition(recognition, workspaceId);
       validRecognitions.push(recognition);
     }
 
@@ -150,10 +152,10 @@ export class RecognitionService {
     const recognitions = await this.parseRecognitionsWithGroups(text, giverId, client, workspaceId);
     const validRecognitions: Recognition[] = [];
     for (const recognition of recognitions) {
-      if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
+      if (!(await this.reader.canGivePoints(giverId, recognition.points, workspaceId))) {
         continue;
       }
-      await this.dataService.recordRecognition(recognition, workspaceId);
+      await this.writer.recordRecognition(recognition, workspaceId);
       validRecognitions.push(recognition);
     }
     return validRecognitions;
@@ -161,5 +163,5 @@ export class RecognitionService {
 }
 
 export const createRecognitionService = (dataService: IDataService): RecognitionService => {
-  return new RecognitionService(dataService);
+  return new RecognitionService(dataService, dataService);
 };
