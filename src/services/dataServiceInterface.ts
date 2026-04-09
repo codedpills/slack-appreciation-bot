@@ -1,4 +1,4 @@
-import { AppState, Recognition, UserRecord, Reward } from '../types';
+import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall } from '../types';
 
 /**
  * Common interface for data storage implementations
@@ -7,77 +7,77 @@ export interface IDataService {
   /**
    * Retrieve application configuration
    */
-  getConfig(): Promise<AppState['config']>;
+  getConfig(workspaceId?: string): Promise<AppState['config']>;
 
   /**
    * Update multiple config fields
    */
-  updateConfig(newConfig: Partial<AppState['config']>): Promise<void>;
+  updateConfig(newConfig: Partial<AppState['config']>, workspaceId?: string): Promise<void>;
 
   /**
    * Set the daily limit for recognitions
    */
-  setDailyLimit(limit: number): Promise<void>;
+  setDailyLimit(limit: number, workspaceId?: string): Promise<void>;
 
   /**
    * Add a company value
    */
-  addValue(value: string): Promise<void>;
+  addValue(value: string, workspaceId?: string): Promise<void>;
 
   /**
    * Remove a company value
    */
-  removeValue(value: string): Promise<void>;
+  removeValue(value: string, workspaceId?: string): Promise<void>;
 
   /**
    * Add a reward option
    */
-  addReward(name: string, cost: number): Promise<void>;
+  addReward(name: string, cost: number, workspaceId?: string): Promise<void>;
 
   /**
    * Remove a reward option
    */
-  removeReward(name: string): Promise<void>;
+  removeReward(name: string, workspaceId?: string): Promise<void>;
 
   /**
    * List all rewards
    */
-  getRewards(): Promise<Reward[]>;
+  getRewards(workspaceId?: string): Promise<Reward[]>;
 
   /**
    * Get a specific reward
    */
-  getReward(name: string): Promise<Reward | undefined>;
+  getReward(name: string, workspaceId?: string): Promise<Reward | undefined>;
 
   /**
    * Fetch or initialize a user record
    */
-  getUserRecord(userId: string): Promise<UserRecord>;
+  getUserRecord(userId: string, workspaceId?: string): Promise<UserRecord>;
 
   /**
    * List all user records
    */
-  getAllUsers(): Promise<Record<string, UserRecord>>;
+  getAllUsers(workspaceId?: string): Promise<Record<string, UserRecord>>;
 
   /**
    * Reset a specific user's points
    */
-  resetUserPoints(userId: string): Promise<void>;
+  resetUserPoints(userId: string, workspaceId?: string): Promise<void>;
 
   /**
    * Record a recognition event
    */
-  recordRecognition(recognition: Recognition): Promise<void>;
+  recordRecognition(recognition: Recognition, workspaceId?: string): Promise<void>;
 
   /**
    * Check if user can give points
    */
-  canGivePoints(userId: string, points: number): Promise<boolean>;
+  canGivePoints(userId: string, points: number, workspaceId?: string): Promise<boolean>;
 
   /**
    * Redeem a reward
    */
-  redeemReward(userId: string, rewardName: string): Promise<boolean>;
+  redeemReward(userId: string, rewardName: string, workspaceId?: string): Promise<boolean>;
 
   /**
    * Persist any pending data operations
@@ -92,20 +92,30 @@ export interface IDataService {
   /**
    * Reset all rewards to empty
    */
-  resetRewards(): Promise<void>;
+  resetRewards(workspaceId?: string): Promise<void>;
 
   /**
    * Reset company values to defaults
    */
-  resetValues(): Promise<void>;
+  resetValues(workspaceId?: string): Promise<void>;
 
   /**
    * Update the points label
    */
-  setLabel(label: string): Promise<void>;
+  setLabel(label: string, workspaceId?: string): Promise<void>;
+
+  /**
+   * Store or update workspace install details
+   */
+  upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void>;
+
+  /**
+   * Fetch workspace install details
+   */
+  getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null>;
 }
 
 /**
  * Factory signature for dataService implementations
  */
-export type CreateDataService = (pathOrUrl?: string) => IDataService;
+export type CreateDataService = (options?: { pool?: any }) => IDataService;

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppState, Recognition, UserRecord, Reward } from '../types';
+import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall } from '../types';
 import { IDataService } from './dataServiceInterface';
 
 /**
@@ -9,10 +9,12 @@ import { IDataService } from './dataServiceInterface';
 export class DataService implements IDataService {
   private dataFilePath: string;
   private state: AppState;
+  private workspaceInstalls: Record<string, WorkspaceInstall>;
 
   constructor(dataFilePath: string) {
     this.dataFilePath = dataFilePath;
     this.state = this.loadInitialState();
+    this.workspaceInstalls = {};
   }
 
   /**
@@ -79,14 +81,14 @@ export class DataService implements IDataService {
   /**
    * Get app configuration
    */
-  async getConfig(): Promise<AppState['config']> {
+  async getConfig(_workspaceId?: string): Promise<AppState['config']> {
     return { ...this.state.config };
   }
 
   /**
    * Update app configuration
    */
-  async updateConfig(newConfig: Partial<AppState['config']>): Promise<void> {
+  async updateConfig(newConfig: Partial<AppState['config']>, _workspaceId?: string): Promise<void> {
     this.state.config = { ...this.state.config, ...newConfig };
     await this.saveState();
   }
@@ -94,7 +96,7 @@ export class DataService implements IDataService {
   /**
    * Set daily limit
    */
-  async setDailyLimit(limit: number): Promise<void> {
+  async setDailyLimit(limit: number, _workspaceId?: string): Promise<void> {
     this.state.config.dailyLimit = limit;
     await this.saveState();
   }
@@ -102,7 +104,7 @@ export class DataService implements IDataService {
   /**
    * Add company value
    */
-  async addValue(value: string): Promise<void> {
+  async addValue(value: string, _workspaceId?: string): Promise<void> {
     const normalizedValue = value.toLowerCase().trim();
     if (!this.state.config.values.includes(normalizedValue)) {
       this.state.config.values.push(normalizedValue);
@@ -113,7 +115,7 @@ export class DataService implements IDataService {
   /**
    * Remove company value
    */
-  async removeValue(value: string): Promise<void> {
+  async removeValue(value: string, _workspaceId?: string): Promise<void> {
     const normalizedValue = value.toLowerCase().trim();
     this.state.config.values = this.state.config.values.filter(
       v => v !== normalizedValue
@@ -124,7 +126,7 @@ export class DataService implements IDataService {
   /**
    * Add reward
    */
-  async addReward(name: string, cost: number): Promise<void> {
+  async addReward(name: string, cost: number, _workspaceId?: string): Promise<void> {
     const existingIndex = this.state.config.rewards.findIndex(
       r => r.name === name
     );
@@ -141,7 +143,7 @@ export class DataService implements IDataService {
   /**
    * Remove reward
    */
-  async removeReward(name: string): Promise<void> {
+  async removeReward(name: string, _workspaceId?: string): Promise<void> {
     this.state.config.rewards = this.state.config.rewards.filter(
       r => r.name !== name
     );
@@ -151,21 +153,21 @@ export class DataService implements IDataService {
   /**
    * Get all rewards
    */
-  async getRewards(): Promise<Reward[]> {
+  async getRewards(_workspaceId?: string): Promise<Reward[]> {
     return [...this.state.config.rewards];
   }
 
   /**
    * Get reward by name
    */
-  async getReward(name: string): Promise<Reward | undefined> {
+  async getReward(name: string, _workspaceId?: string): Promise<Reward | undefined> {
     return this.state.config.rewards.find(r => r.name === name);
   }
 
   /**
    * Get user record
    */
-  async getUserRecord(userId: string): Promise<UserRecord> {
+  async getUserRecord(userId: string, _workspaceId?: string): Promise<UserRecord> {
     // If user doesn't exist, create a new record
     if (!this.state.users[userId]) {
       const today = new Date().toISOString().split('T')[0];
@@ -183,14 +185,14 @@ export class DataService implements IDataService {
   /**
    * Get all user records
    */
-  async getAllUsers(): Promise<Record<string, UserRecord>> {
+  async getAllUsers(_workspaceId?: string): Promise<Record<string, UserRecord>> {
     return { ...this.state.users };
   }
 
   /**
    * Reset user's points
    */
-  async resetUserPoints(userId: string): Promise<void> {
+  async resetUserPoints(userId: string, _workspaceId?: string): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     // Ensure user record exists
     if (!this.state.users[userId]) {
@@ -208,7 +210,7 @@ export class DataService implements IDataService {
   /**
    * Record a recognition
    */
-  async recordRecognition(recognition: Recognition): Promise<void> {
+  async recordRecognition(recognition: Recognition, _workspaceId?: string): Promise<void> {
     const { giver, receiver, value, points } = recognition;
     const today = new Date().toISOString().split('T')[0];
 
@@ -256,7 +258,7 @@ export class DataService implements IDataService {
   /**
    * Check if a user can give points
    */
-  async canGivePoints(userId: string, points: number): Promise<boolean> {
+  async canGivePoints(userId: string, points: number, _workspaceId?: string): Promise<boolean> {
     const today = new Date().toISOString().split('T')[0];
     const user = await this.getUserRecord(userId);
 
@@ -271,7 +273,7 @@ export class DataService implements IDataService {
   /**
    * Redeem reward for a user
    */
-  async redeemReward(userId: string, rewardName: string): Promise<boolean> {
+  async redeemReward(userId: string, rewardName: string, _workspaceId?: string): Promise<boolean> {
     const reward = await this.getReward(rewardName);
     if (!reward) return false;
 
@@ -325,7 +327,7 @@ export class DataService implements IDataService {
   /**
    * Reset all configured rewards
    */
-  async resetRewards(): Promise<void> {
+  async resetRewards(_workspaceId?: string): Promise<void> {
     this.state.config.rewards = [];
     await this.saveState();
   }
@@ -333,7 +335,7 @@ export class DataService implements IDataService {
   /**
    * Reset company values to defaults
    */
-  async resetValues(): Promise<void> {
+  async resetValues(_workspaceId?: string): Promise<void> {
     // Default values as initialized
     this.state.config.values = ['teamwork'];
     await this.saveState();
@@ -342,9 +344,17 @@ export class DataService implements IDataService {
   /**
    * Set the label for points
    */
-  async setLabel(label: string): Promise<void> {
+  async setLabel(label: string, _workspaceId?: string): Promise<void> {
     this.state.config.label = label;
     await this.saveState();
+  }
+
+  async upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void> {
+    this.workspaceInstalls[install.workspaceId] = { ...install };
+  }
+
+  async getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null> {
+    return this.workspaceInstalls[workspaceId] ? { ...this.workspaceInstalls[workspaceId] } : null;
   }
 }
 
