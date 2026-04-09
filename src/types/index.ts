@@ -35,6 +35,13 @@ export interface Recognition {
   timestamp: number;
 }
 
+export interface WorkspaceInstall {
+  workspaceId: string;
+  botUserId: string;
+  botToken: string;
+  installedAt: string;
+}
+
 export interface CommandResult {
   success: boolean;
   message: string;

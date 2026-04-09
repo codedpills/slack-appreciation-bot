@@ -51,7 +51,7 @@ describe('Admin Commands Acceptance Tests', () => {
     
     const adminResult = await commandService.setDailyLimit(adminUserId, '10');
     expect(adminResult.success).toBe(true);
-    expect(setLimitSpy).toHaveBeenCalledWith(10);
+    expect(setLimitSpy).toHaveBeenCalledWith(10, undefined);
     
     const userResult = await commandService.setDailyLimit(regularUserId, '10');
     expect(userResult.success).toBe(false);
@@ -68,7 +68,7 @@ describe('Admin Commands Acceptance Tests', () => {
     
     const adminResult = await commandService.addValue(adminUserId, 'creativity');
     expect(adminResult.success).toBe(true);
-    expect(addValueSpy).toHaveBeenCalledWith('creativity');
+    expect(addValueSpy).toHaveBeenCalledWith('creativity', undefined);
     
     const userResult = await commandService.addValue(regularUserId, 'creativity');
     expect(userResult.success).toBe(false);
@@ -85,11 +85,11 @@ describe('Admin Commands Acceptance Tests', () => {
     
     const addResult = await commandService.addReward(adminUserId, 'Coffee Voucher', '50');
     expect(addResult.success).toBe(true);
-    expect(addRewardSpy).toHaveBeenCalledWith('Coffee Voucher', 50);
+    expect(addRewardSpy).toHaveBeenCalledWith('Coffee Voucher', 50, undefined);
     
     const removeResult = await commandService.removeReward(adminUserId, 'Coffee Voucher');
     expect(removeResult.success).toBe(true);
-    expect(removeRewardSpy).toHaveBeenCalledWith('Coffee Voucher');
+    expect(removeRewardSpy).toHaveBeenCalledWith('Coffee Voucher', undefined);
     
     const userAddResult = await commandService.addReward(regularUserId, 'Coffee Voucher', '50');
     expect(userAddResult.success).toBe(false);
@@ -104,14 +104,14 @@ describe('Admin Commands Acceptance Tests', () => {
     
     const adminResult = await commandService.resetPoints(adminUserId, 'USER789', mockClient);
     expect(adminResult.success).toBe(true);
-    expect(resetSpy).toHaveBeenCalledWith('USER789');
+    expect(resetSpy).toHaveBeenCalledWith('USER789', undefined);
     
     const userResult = await commandService.resetPoints(regularUserId, 'USER789', mockClient);
     expect(userResult.success).toBe(false);
     
     const formattedResult = await commandService.resetPoints(adminUserId, '<@USER789>', mockClient);
     expect(formattedResult.success).toBe(true);
-    expect(resetSpy).toHaveBeenCalledWith('USER789');
+    expect(resetSpy).toHaveBeenCalledWith('USER789', undefined);
   });
   
   test('should reset user points and persist changes', async () => {
@@ -133,7 +133,7 @@ describe('Admin Commands Acceptance Tests', () => {
     const adminResult = await commandService.resetPoints(adminUserId, 'USER789', mockClient);
     expect(adminResult.success).toBe(true);
     expect(adminResult.message).toContain('Points for USER789 have been reset.');
-    expect(resetSpy).toHaveBeenCalledWith('USER789');
+    expect(resetSpy).toHaveBeenCalledWith('USER789', undefined);
 
     const updatedUser = await dataService.getUserRecord('USER789');
     expect(updatedUser.total).toBe(0);
@@ -150,7 +150,7 @@ describe('Admin Commands Acceptance Tests', () => {
     const result = await commandService.resetPoints(adminUserId, '@username', {} as any);
     expect(result.success).toBe(true);
     expect(resolveUserIdSpy).toHaveBeenCalledWith(expect.anything(), '@username');
-    expect(resetSpy).toHaveBeenCalledWith('USER789');
+    expect(resetSpy).toHaveBeenCalledWith('USER789', undefined);
   });
 
   test('should handle invalid usernames gracefully', async () => {
@@ -171,8 +171,8 @@ describe('Admin Commands Acceptance Tests', () => {
     expect(result.success).toBe(true);
     expect(result.message).toContain('All user points have been reset.');
     expect(resetSpy).toHaveBeenCalledTimes(Object.keys(users).length);
-    expect(resetSpy).toHaveBeenCalledWith('USER1');
-    expect(resetSpy).toHaveBeenCalledWith('USER2');
+    expect(resetSpy).toHaveBeenCalledWith('USER1', undefined);
+    expect(resetSpy).toHaveBeenCalledWith('USER2', undefined);
   });
 
   test('should prevent non-admins from resetting all points', async () => {
@@ -191,7 +191,7 @@ describe('Admin Commands Acceptance Tests', () => {
 
     const adminResult = await commandService.setLabel(adminUserId, 'kutanacoins');
     expect(adminResult.success).toBe(true);
-    expect(setLabelSpy).toHaveBeenCalledWith('kutanacoins');
+    expect(setLabelSpy).toHaveBeenCalledWith('kutanacoins', undefined);
     expect(adminResult.message).toContain('kutanacoins');
 
     const userResult = await commandService.setLabel(regularUserId, 'gold');

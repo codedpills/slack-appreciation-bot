@@ -4,18 +4,30 @@ import { CommandResult } from '../types';
 export class CommandService {
   private dataService: IDataService;
   private adminUsers: string[];
+  private workspaceAdmins: Map<string, string[]>;
   
   constructor(dataService: IDataService, adminUsers: string[] = []) {
     this.dataService = dataService;
     this.adminUsers = adminUsers;
+    this.workspaceAdmins = new Map();
   }
 
-  isAdmin(userId: string): boolean {
+  setWorkspaceAdmins(workspaceId: string, admins: string[]): void {
+    this.workspaceAdmins.set(workspaceId, admins);
+  }
+
+  isAdmin(userId: string, workspaceId?: string): boolean {
+    if (workspaceId) {
+      const admins = this.workspaceAdmins.get(workspaceId);
+      if (admins) {
+        return admins.includes(userId);
+      }
+    }
     return this.adminUsers.includes(userId);
   }
 
-  async setDailyLimit(userId: string, limitStr: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async setDailyLimit(userId: string, limitStr: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { 
         success: false, 
         message: 'Only admins can change the daily limit'
@@ -30,7 +42,7 @@ export class CommandService {
       };
     }
     
-    await this.dataService.setDailyLimit(limit);
+    await this.dataService.setDailyLimit(limit, workspaceId);
     
     return {
       success: true,
@@ -38,8 +50,8 @@ export class CommandService {
     };
   }
 
-  async addValue(userId: string, value: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async addValue(userId: string, value: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { 
         success: false, 
         message: 'Only admins can add company values'
@@ -54,7 +66,7 @@ export class CommandService {
     }
     
     const normalizedValue = value.toLowerCase().trim();
-    await this.dataService.addValue(normalizedValue);
+    await this.dataService.addValue(normalizedValue, workspaceId);
     
     return {
       success: true,
@@ -62,8 +74,8 @@ export class CommandService {
     };
   }
 
-  async removeValue(userId: string, value: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async removeValue(userId: string, value: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { 
         success: false, 
         message: 'Only admins can remove company values'
@@ -78,7 +90,7 @@ export class CommandService {
     }
     
     const normalizedValue = value.toLowerCase().trim();
-    await this.dataService.removeValue(normalizedValue);
+    await this.dataService.removeValue(normalizedValue, workspaceId);
     
     return {
       success: true,
@@ -86,8 +98,8 @@ export class CommandService {
     };
   }
 
-  async addReward(userId: string, name: string, costStr: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async addReward(userId: string, name: string, costStr: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { 
         success: false, 
         message: 'Only admins can add rewards'
@@ -109,7 +121,7 @@ export class CommandService {
       };
     }
     
-    await this.dataService.addReward(name, cost);
+    await this.dataService.addReward(name, cost, workspaceId);
     
     return {
       success: true,
@@ -117,8 +129,8 @@ export class CommandService {
     };
   }
 
-  async removeReward(userId: string, name: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async removeReward(userId: string, name: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { 
         success: false, 
         message: 'Only admins can remove rewards'
@@ -132,7 +144,7 @@ export class CommandService {
       };
     }
     
-    await this.dataService.removeReward(name);
+    await this.dataService.removeReward(name, workspaceId);
     
     return {
       success: true,
@@ -156,8 +168,8 @@ export class CommandService {
     }
   }
 
-  async resetPoints(requesterId: string, target: string, client: any): Promise<{ success: boolean; message: string }> {
-    if (!this.adminUsers.includes(requesterId)) {
+  async resetPoints(requesterId: string, target: string, client: any, workspaceId?: string): Promise<{ success: boolean; message: string }> {
+    if (!this.isAdmin(requesterId, workspaceId)) {
       return { success: false, message: 'Only admins can reset points.' };
     }
 
@@ -172,34 +184,34 @@ export class CommandService {
       }
     }
 
-    const userRecord = this.dataService.getUserRecord(userId);
+    const userRecord = await this.dataService.getUserRecord(userId, workspaceId);
     
     if (!userRecord) {
       return { success: false, message: `User ${target} not found.` };
     }
 
-    await this.dataService.resetUserPoints(userId);
+    await this.dataService.resetUserPoints(userId, workspaceId);
     return { success: true, message: `Points for ${target} have been reset.` };
   }
 
   /**
    * Reset all users' points
    */
-  async resetAllPoints(requesterId: string): Promise<CommandResult> {
-    if (!this.isAdmin(requesterId)) {
+  async resetAllPoints(requesterId: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(requesterId, workspaceId)) {
       return { success: false, message: 'Only admins can reset all points.' };
     }
 
-    const users = await this.dataService.getAllUsers();
+    const users = await this.dataService.getAllUsers(workspaceId);
     for (const userId of Object.keys(users)) {
-      await this.dataService.resetUserPoints(userId);
+      await this.dataService.resetUserPoints(userId, workspaceId);
     }
 
     return { success: true, message: 'All user points have been reset.' };
   }
 
-  async redeemReward(userId: string, rewardName: string): Promise<CommandResult> {
-    const reward = await this.dataService.getReward(rewardName);
+  async redeemReward(userId: string, rewardName: string, workspaceId?: string): Promise<CommandResult> {
+    const reward = await this.dataService.getReward(rewardName, workspaceId);
     
     if (!reward) {
       return {
@@ -208,7 +220,7 @@ export class CommandService {
       };
     }
     
-    const user = await this.dataService.getUserRecord(userId);
+    const user = await this.dataService.getUserRecord(userId, workspaceId);
     
     if (user.total < reward.cost) {
       return {
@@ -217,13 +229,14 @@ export class CommandService {
       };
     }
     
-    const success = await this.dataService.redeemReward(userId, rewardName);
+    const success = await this.dataService.redeemReward(userId, rewardName, workspaceId);
     
     if (success) {
+      const updatedUser = { ...user, total: user.total - reward.cost };
       return {
         success: true,
         message: `You've redeemed "${rewardName}" for ${reward.cost} points! Your new balance is ${user.total - reward.cost} points.`,
-        data: { reward, user }
+        data: { reward, user: updatedUser }
       };
     } else {
       return {
@@ -236,36 +249,36 @@ export class CommandService {
   /**
    * Reset all configured rewards
    */
-  async resetRewards(userId: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async resetRewards(userId: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { success: false, message: 'Only admins can reset rewards.' };
     }
-    await this.dataService.resetRewards();
+    await this.dataService.resetRewards(workspaceId);
     return { success: true, message: 'All rewards have been reset.' };
   }
 
   /**
    * Reset company values to defaults
    */
-  async resetValues(userId: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async resetValues(userId: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { success: false, message: 'Only admins can reset company values.' };
     }
-    await this.dataService.resetValues();
+    await this.dataService.resetValues(workspaceId);
     return { success: true, message: 'Company values have been reset.' };
   }
 
   /**
    * Set custom label for points
    */
-  async setLabel(userId: string, label: string): Promise<CommandResult> {
-    if (!this.isAdmin(userId)) {
+  async setLabel(userId: string, label: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
       return { success: false, message: 'Only admins can set the points label.' };
     }
     if (!label || label.trim() === '') {
       return { success: false, message: 'Please provide a valid label.' };
     }
-    await this.dataService.setLabel(label.trim());
+    await this.dataService.setLabel(label.trim(), workspaceId);
     return { success: true, message: `Points label set to "${label.trim()}".` };
   }
 }

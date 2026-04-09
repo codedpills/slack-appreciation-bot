@@ -15,7 +15,7 @@ export class RecognitionService {
    * Process a recognition from a message
    * Returns null if no valid recognition was found
    */
-  async parseRecognition(text: string, giverId: string): Promise<Recognition | null> {
+  async parseRecognition(text: string, giverId: string, workspaceId?: string): Promise<Recognition | null> {
     // Removed debug logs and redundant comments for tidiness
     const regex = /<@([A-Z0-9]+)>\s*(\+{1,})\s*(.*?)(?:\s*#(\w+))?$/i;
     const match = text.match(regex);
@@ -32,7 +32,7 @@ export class RecognitionService {
 
     if (receiverId === giverId) return null;
 
-    const config = await this.dataService.getConfig();
+    const config = await this.dataService.getConfig(workspaceId);
     if (!config.values.includes(value) && value !== 'general') {
       return null;
     }
@@ -49,13 +49,13 @@ export class RecognitionService {
     };
   }
 
-  async parseRecognitions(text: string, giverId: string): Promise<Recognition[]> {
+  async parseRecognitions(text: string, giverId: string, workspaceId?: string): Promise<Recognition[]> {
     // match one or more user mentions, plus count, reason, optional #value, up to next mention or end
     const regex = /((?:<@[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#(\w+))?(?=\s*(?:<@)|$)/gi;
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];
-    const config = await this.dataService.getConfig();
+    const config = await this.dataService.getConfig(workspaceId);
 
     for (const match of matches) {
       const [_, mentionGroup, plusSymbols, reasonText, valueTag] = match;
@@ -101,13 +101,13 @@ export class RecognitionService {
     }
   }
 
-  async parseRecognitionsWithGroups(text: string, giverId: string, client: any): Promise<Recognition[]> {
+  async parseRecognitionsWithGroups(text: string, giverId: string, client: any, workspaceId?: string): Promise<Recognition[]> {
     // match one or more user mentions or group tags, plus count, reason, optional #value, up to next mention/group or end
     const regex = /((?:<@[A-Z0-9]+>|<!subteam\^[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#(\w+))?(?=\s*(?:<@|<!subteam\^)|$)/gi;
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];
-    const config = await this.dataService.getConfig();
+    const config = await this.dataService.getConfig(workspaceId);
 
     for (const match of matches) {
       const [_, mentionGroup, plusSymbols, reasonText, valueTag] = match;
@@ -152,29 +152,29 @@ export class RecognitionService {
    * Process and save a recognition
    * Returns whether the recognition was processed successfully
    */
-  async processRecognition(text: string, giverId: string): Promise<Recognition | null> {
-    const recognition = await this.parseRecognition(text, giverId);
+  async processRecognition(text: string, giverId: string, workspaceId?: string): Promise<Recognition | null> {
+    const recognition = await this.parseRecognition(text, giverId, workspaceId);
     if (!recognition) return null;
 
-    if (!(await this.dataService.canGivePoints(giverId, recognition.points))) {
+    if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
       return null;
     }
 
-    await this.dataService.recordRecognition(recognition);
+    await this.dataService.recordRecognition(recognition, workspaceId);
 
     return recognition;
   }
 
-  async processRecognitions(text: string, giverId: string): Promise<Recognition[]> {
-    const recognitions = await this.parseRecognitions(text, giverId);
+  async processRecognitions(text: string, giverId: string, workspaceId?: string): Promise<Recognition[]> {
+    const recognitions = await this.parseRecognitions(text, giverId, workspaceId);
     const validRecognitions: Recognition[] = [];
 
     for (const recognition of recognitions) {
-      if (!(await this.dataService.canGivePoints(giverId, recognition.points))) {
+      if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
         continue;
       }
 
-      await this.dataService.recordRecognition(recognition);
+      await this.dataService.recordRecognition(recognition, workspaceId);
       validRecognitions.push(recognition);
     }
 
@@ -184,14 +184,14 @@ export class RecognitionService {
   /**
    * Process and save group recognitions in one step
    */
-  async processRecognitionsWithGroups(text: string, giverId: string, client: any): Promise<Recognition[]> {
-    const recognitions = await this.parseRecognitionsWithGroups(text, giverId, client);
+  async processRecognitionsWithGroups(text: string, giverId: string, client: any, workspaceId?: string): Promise<Recognition[]> {
+    const recognitions = await this.parseRecognitionsWithGroups(text, giverId, client, workspaceId);
     const validRecognitions: Recognition[] = [];
     for (const recognition of recognitions) {
-      if (!this.dataService.canGivePoints(giverId, recognition.points)) {
+      if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
         continue;
       }
-      await this.dataService.recordRecognition(recognition);
+      await this.dataService.recordRecognition(recognition, workspaceId);
       validRecognitions.push(recognition);
     }
     return validRecognitions;

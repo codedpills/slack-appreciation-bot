@@ -16,14 +16,17 @@ export function registerRecognitionHandlers(
     const messageEvent = message as GenericMessageEvent;
     if (!messageEvent.text || !messageEvent.user) return;
 
+    const workspaceId = (messageEvent as any).team || (messageEvent as any).team_id;
+
     const recognitions = await recognitionService.processRecognitionsWithGroups(
       messageEvent.text,
       messageEvent.user,
-      client
+      client,
+      workspaceId
     );
 
     // load label
-    const { config } = await loadState(dataService);
+    const { config } = await loadState(dataService, workspaceId);
     const label = config.label;
 
     for (const rec of recognitions) {
@@ -38,8 +41,8 @@ export function registerRecognitionHandlers(
 
     if (recognitions.length > 0) {
       try {
-        await publishHomeView(client, recognitions[0].receiver, dataService, commandService);
-        await publishHomeView(client, recognitions[0].giver, dataService, commandService);
+        await publishHomeView(client, recognitions[0].receiver, dataService, commandService, workspaceId);
+        await publishHomeView(client, recognitions[0].giver, dataService, commandService, workspaceId);
       } catch (error) {
         console.error('Error publishing home view:', error);
       }

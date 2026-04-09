@@ -1,7 +1,7 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsers, loadState, publishHomeView } from '../utils';
+import { getAdminUsersCached, loadState, publishHomeView } from '../utils';
 import {
   buildRedeemModal,
   buildRedemptionConfirmation,
@@ -13,9 +13,14 @@ export function registerCommandHandlers(
   dataService: IDataService,
   commandService: CommandService
 ) {
+  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
+
   app.command('/points', async ({ command, ack, respond, client }) => {
     await ack();
     const { text, user_id } = command;
+    const workspaceId = command.team_id || 'default';
+    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    commandService.setWorkspaceAdmins(workspaceId, admins);
     const args = text.trim().split(/\s+/);
     const subCommand = args[0]?.toLowerCase();
     let result;
@@ -24,12 +29,12 @@ export function registerCommandHandlers(
       case 'config': {
         const cfgCmd = args[1]?.toLowerCase();
         switch (cfgCmd) {
-          case 'daily_limit': result = await commandService.setDailyLimit(user_id, args[2]); break;
-          case 'add_value': result = await commandService.addValue(user_id, args[2]); break;
-          case 'remove_value': result = await commandService.removeValue(user_id, args[2]); break;
+          case 'daily_limit': result = await commandService.setDailyLimit(user_id, args[2], workspaceId); break;
+          case 'add_value': result = await commandService.addValue(user_id, args[2], workspaceId); break;
+          case 'remove_value': result = await commandService.removeValue(user_id, args[2], workspaceId); break;
           case 'label': {
             const newLabel = args.slice(2).join(' ');
-            result = await commandService.setLabel(user_id, newLabel);
+            result = await commandService.setLabel(user_id, newLabel, workspaceId);
             break;
           }
           default:
@@ -42,12 +47,12 @@ export function registerCommandHandlers(
         switch (rwCmd) {
           case 'add': {
             const m = text.match(/reward\s+add\s+"([^"]+)"\s+(\d+)/i);
-            result = m ? await commandService.addReward(user_id, m[1], m[2]) : { success: false, message: 'Invalid format. Use: /points reward add "Name" cost' };
+            result = m ? await commandService.addReward(user_id, m[1], m[2], workspaceId) : { success: false, message: 'Invalid format. Use: /points reward add "Name" cost' };
             break;
           }
           case 'remove': {
             const rm = text.match(/reward\s+remove\s+"([^"]+)"/i);
-            result = rm ? await commandService.removeReward(user_id, rm[1]) : { success: false, message: 'Invalid format. Use: /points reward remove "Name"' };
+            result = rm ? await commandService.removeReward(user_id, rm[1], workspaceId) : { success: false, message: 'Invalid format. Use: /points reward remove "Name"' };
             break;
           }
           default:
@@ -57,11 +62,11 @@ export function registerCommandHandlers(
       }
       case 'reset':
         if (args[1]?.toLowerCase() === 'all') {
-          result = await commandService.resetAllPoints(user_id);
+          result = await commandService.resetAllPoints(user_id, workspaceId);
         } else if (args.length < 2) {
           result = { success: false, message: 'Please specify a user. Example: /points reset @user' };
         } else {
-          result = await commandService.resetPoints(user_id, args[1], client);
+          result = await commandService.resetPoints(user_id, args[1], client, workspaceId);
         }
         break;
       default:
@@ -69,9 +74,9 @@ export function registerCommandHandlers(
     }
     await respond({ text: result.message, response_type: 'ephemeral' });
     if (result.success) {
-      const users = await dataService.getAllUsers();
+      const users = await dataService.getAllUsers(workspaceId);
       for (const uid of Object.keys(users)) {
-        try { await publishHomeView(client, uid, dataService, commandService); } catch {}
+        try { await publishHomeView(client, uid, dataService, commandService, workspaceId); } catch {}
       }
     }
   });
@@ -79,10 +84,12 @@ export function registerCommandHandlers(
   app.command('/redeem', async ({ command, ack, respond, client }) => {
     await ack();
     const { text, user_id } = command;
-    const adminUsers = await getAdminUsers(client);
+    const workspaceId = command.team_id || 'default';
+    const adminUsers = await getAdminUsersCached(client, workspaceId, adminCache);
+    commandService.setWorkspaceAdmins(workspaceId, adminUsers);
     if (!text.trim()) {
-      const rewards = await dataService.getRewards();
-      const userRecord = await dataService.getUserRecord(user_id);
+      const rewards = await dataService.getRewards(workspaceId);
+      const userRecord = await dataService.getUserRecord(user_id, workspaceId);
       try {
         await client.views.open({ trigger_id: command.trigger_id, view: buildRedeemModal(rewards, userRecord.total) });
       } catch (e) {
@@ -93,11 +100,11 @@ export function registerCommandHandlers(
     }
     const match = text.match(/"([^"]+)"/);
     const rewardName = match ? match[1] : text.trim();
-    const result = await commandService.redeemReward(user_id, rewardName);
+    const result = await commandService.redeemReward(user_id, rewardName, workspaceId);
     await respond({ text: result.message, response_type: 'ephemeral' });
     if (result.success && result.data) {
       const { reward, user } = result.data;
-      const config = await dataService.getConfig();
+      const config = await dataService.getConfig(workspaceId);
       const label = config.label;
       try {
         await client.chat.postMessage({
@@ -111,29 +118,31 @@ export function registerCommandHandlers(
           await client.chat.postMessage({ channel: aid, blocks: buildAdminRedemptionNotification(user_id, reward.name, reward.cost), text: `Notification: ${user_id} redeemed ${reward.name}` });
         } catch {}
       }
-      await publishHomeView(client, user_id, dataService, commandService);
+      await publishHomeView(client, user_id, dataService, commandService, workspaceId);
     }
   });
 
   app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
     await ack();
     const userId = body.user.id;
+    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
     const selected = view.state.values.reward_select.reward_selection.selected_option;
     if (!selected) {
       await client.chat.postMessage({ channel: userId, text: 'No selection made' });
       return;
     }
-    const result = await commandService.redeemReward(userId, selected.value);
+    const result = await commandService.redeemReward(userId, selected.value, workspaceId);
     if (result.success && result.data) {
       const { reward, user } = result.data;
-      const config = await dataService.getConfig();
+      const config = await dataService.getConfig(workspaceId);
       const label = config.label;
       await client.chat.postMessage({ channel: userId, blocks: buildRedemptionConfirmation(reward.name, reward.cost, user.total - reward.cost), text: `Redemption confirmed: ${reward.name} for ${reward.cost} ${label}` });
-      const adminUsers = await getAdminUsers(client);
+      const adminUsers = await getAdminUsersCached(client, workspaceId, adminCache);
+      commandService.setWorkspaceAdmins(workspaceId, adminUsers);
       for (const aid of adminUsers) {
         await client.chat.postMessage({ channel: aid, blocks: buildAdminRedemptionNotification(userId, reward.name, reward.cost), text: `Notification: ${userId} redeemed ${reward.name}` });
       }
-      await publishHomeView(client, userId, dataService, commandService);
+      await publishHomeView(client, userId, dataService, commandService, workspaceId);
     } else {
       await client.chat.postMessage({ channel: userId, text: result.message });
     }
