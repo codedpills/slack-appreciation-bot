@@ -4,7 +4,7 @@ import {
   buildRedeemModal,
   buildRedemptionConfirmation,
   buildAdminRedemptionNotification
-} from '../views/homeView';
+} from '../views/home';
 import { CommandResult } from '../types';
 
 export class RedemptionService {

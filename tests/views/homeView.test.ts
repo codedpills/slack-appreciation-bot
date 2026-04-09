@@ -1,4 +1,4 @@
-import { buildHomeView, buildHomeViewFromContext } from '../../src/views/homeView';
+import { buildHomeView, buildHomeViewFromContext } from '../../src/views/home';
 import { UserRecord } from '../../src/types';
 
 describe('Home View Builder', () => {

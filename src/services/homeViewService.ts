@@ -1,4 +1,4 @@
-import { buildHomeViewFromContext, ViewContext } from '../views/homeView';
+import { buildHomeViewFromContext, ViewContext } from '../views/home';
 import { UserRecord } from '../types';
 
 const defaultUserRecord: UserRecord = {
