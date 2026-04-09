@@ -3,7 +3,7 @@ import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
 import { loadState } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
-import { buildHomeView } from '../views/homeView';
+import { buildHomeViewFromContext } from '../views/homeView';
 
 export function registerSettingsHandlers(
   app: App,
@@ -23,7 +23,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Reset Rewards
@@ -38,7 +48,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Reset Values
@@ -53,7 +73,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Set Daily Limit Modal
@@ -99,7 +129,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Add Value Modal
@@ -145,7 +185,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Remove Value Modal
@@ -193,7 +243,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Add Reward Modal & Submission
@@ -232,7 +292,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Remove Reward Modal & Submission
@@ -270,7 +340,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Reset User Points Modal & Submission
@@ -307,7 +387,17 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 
   // Set Label Modal & Submission
@@ -349,6 +439,16 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 }

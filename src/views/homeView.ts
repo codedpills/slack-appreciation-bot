@@ -1,4 +1,26 @@
-import { UserRecord, Reward } from '../types';
+import { AppConfig, UserRecord, Reward } from '../types';
+
+export type ViewContext = {
+  userId: string;
+  section?: string;
+  users: Record<string, UserRecord>;
+  rewards: Reward[];
+  config: Pick<AppConfig, 'values' | 'dailyLimit' | 'label'>;
+  isAdmin: boolean;
+};
+
+export const buildHomeViewFromContext = (ctx: ViewContext) => {
+  return buildHomeView(
+    ctx.users,
+    ctx.config.values,
+    ctx.userId,
+    ctx.section || 'Home',
+    ctx.rewards,
+    ctx.isAdmin,
+    ctx.config.dailyLimit,
+    ctx.config.label
+  );
+};
 
 /**
  * Build the App Home view with leaderboard and user stats

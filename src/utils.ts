@@ -1,7 +1,7 @@
 import { App } from '@slack/bolt';
 import { IDataService } from './services/dataServiceInterface';
 import { CommandService } from './services/commandService';
-import { buildHomeView } from './views/homeView';
+import { buildHomeViewFromContext } from './views/homeView';
 
 export async function loadState(dataService: IDataService, workspaceId?: string) {
   const users = await dataService.getAllUsers(workspaceId);
@@ -61,7 +61,14 @@ export async function publishHomeView(
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Home',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin
+      })
     });
   } catch (error) {
     console.error('Error publishing home view:', error);

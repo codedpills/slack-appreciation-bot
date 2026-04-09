@@ -3,7 +3,7 @@ import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
 import { loadState, publishHomeView } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
-import { buildHomeView } from '../views/homeView';
+import { buildHomeViewFromContext } from '../views/homeView';
 
 export function registerHomeHandlers(
   app: App,
@@ -21,7 +21,14 @@ export function registerHomeHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Home',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin
+      })
     });
   });
 
@@ -37,7 +44,14 @@ export function registerHomeHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, rewards, isAdmin, dailyLimit, label)
+      view: buildHomeViewFromContext({
+        userId,
+        section: selectedSection,
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin
+      })
     });
   });
 }
