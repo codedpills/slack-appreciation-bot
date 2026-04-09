@@ -1,7 +1,7 @@
 import { App } from '@slack/bolt';
 import { IDataService } from './services/dataServiceInterface';
 import { CommandService } from './services/commandService';
-import { buildHomeViewFromContext } from './views/homeView';
+import { HomeViewService } from './services/homeViewService';
 import { StateLoader } from './services/stateLoader';
 
 export async function loadState(dataService: IDataService, workspaceId?: string) {
@@ -50,6 +50,7 @@ export async function publishHomeView(
   commandService: CommandService,
   workspaceId?: string
 ) {
+  const homeViewService = new HomeViewService();
   const loader = new StateLoader(dataService);
   const { users, config, rewards, currentUser } = await loader.loadHomeState(userId, workspaceId);
   const { values, dailyLimit, label } = config;
@@ -61,7 +62,7 @@ export async function publishHomeView(
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Home',
         users,

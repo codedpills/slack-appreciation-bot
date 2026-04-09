@@ -2,8 +2,8 @@ import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
 import { AdminCacheService } from '../services/adminCacheService';
-import { buildHomeViewFromContext } from '../views/homeView';
 import { StateLoader } from '../services/stateLoader';
+import { HomeViewService } from '../services/homeViewService';
 
 export function registerHomeHandlers(
   app: App,
@@ -12,6 +12,7 @@ export function registerHomeHandlers(
   adminCacheService: AdminCacheService
 ) {
   const stateLoader = new StateLoader(dataService);
+  const homeViewService = new HomeViewService();
 
   app.event('app_home_opened', async ({ event, client }) => {
     const userId = (event as any).user;
@@ -23,7 +24,7 @@ export function registerHomeHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Home',
         users,
@@ -47,7 +48,7 @@ export function registerHomeHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: selectedSection,
         users,

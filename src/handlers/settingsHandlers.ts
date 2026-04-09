@@ -3,8 +3,8 @@ import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
 import { loadState } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
-import { buildHomeViewFromContext } from '../views/homeView';
 import { StateLoader } from '../services/stateLoader';
+import { HomeViewService } from '../services/homeViewService';
 
 export function registerSettingsHandlers(
   app: App,
@@ -13,6 +13,7 @@ export function registerSettingsHandlers(
   adminCacheService: AdminCacheService,
 ) {
   const stateLoader = new StateLoader(dataService);
+  const homeViewService = new HomeViewService();
 
   // Reset All Points
   app.action('settings_reset_all', async ({ body, ack, client }) => {
@@ -28,7 +29,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -54,7 +55,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -80,7 +81,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -137,7 +138,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -194,7 +195,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -253,7 +254,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -303,7 +304,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -352,7 +353,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
@@ -400,7 +401,7 @@ export function registerSettingsHandlers(
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeViewFromContext({
+      view: homeViewService.buildHomeView({
         userId,
         section: 'Settings',
         users,
