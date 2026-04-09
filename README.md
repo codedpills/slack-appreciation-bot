@@ -19,6 +19,7 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
 - Node.js (v14 or newer)
 - npm or yarn
 - A Slack workspace with admin rights
+- Docker (optional, for local Postgres)
 
 ### Installation
 
@@ -35,12 +36,13 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
 
 3. Create a `.env` file in the root directory with your Slack credentials:
    ```
-   SLACK_BOT_TOKEN=xoxb-your-bot-token
-   SLACK_APP_TOKEN=xapp-your-app-token
+   SLACK_CLIENT_ID=your-client-id
+   SLACK_CLIENT_SECRET=your-client-secret
+   SLACK_STATE_SECRET=your-random-state-secret
    SLACK_SIGNING_SECRET=your-signing-secret
-   DATA_FILE_PATH=./data/store.json
+   SLACK_SCOPES=chat:write,commands,users:read,usergroups:read,channels:read,im:read,mpim:read,groups:read,channels:history,groups:history,im:history,mpim:history
+   DATABASE_URL=postgres://appreciation:appreciation@localhost:5432/appreciation
    PORT=3000
-   ADMIN_USERS=U12345678,U87654321
    ```
 
 4. Build the TypeScript code:
@@ -87,6 +89,8 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
    - Enable the Home Tab
 
 ## Usage
+
+> Note: The bot only receives messages in channels it has been invited to. Use `/invite @your-bot-name` in any channel where you want recognitions to work.
 
 ### Updated Recognition Syntax
 
@@ -140,7 +144,17 @@ When in **Settings**, admins see current configuration values and buttons to set
 
 ## Data Storage
 
-Data is stored in a JSON file. The default location is `./data/store.json`. The file path can be configured using the `DATA_FILE_PATH` environment variable.
+Data is stored in Postgres. For local development you can run a Postgres container:
+
+```bash
+npm run db:up
+```
+
+To stop it:
+
+```bash
+npm run db:down
+```
 
 ## Hosting
 
