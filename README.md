@@ -42,6 +42,17 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
    SLACK_SIGNING_SECRET=your-signing-secret
    SLACK_SCOPES=chat:write,commands,users:read,usergroups:read,channels:read,im:read,mpim:read,groups:read,channels:history,groups:history,im:history,mpim:history
    DATABASE_URL=postgres://appreciation:appreciation@localhost:5432/appreciation
+   DATABASE_SSL=false
+   SLACK_INSTALL_ENCRYPTION_KEY=your-random-32-byte-secret
+   PORT=3000
+   ```
+
+   Token-based (single workspace) setup is also supported. If you prefer to skip OAuth, set:
+   ```
+   SLACK_BOT_TOKEN=xoxb-your-bot-token
+   SLACK_SIGNING_SECRET=your-signing-secret
+   DATABASE_URL=postgres://appreciation:appreciation@localhost:5432/appreciation
+   DATABASE_SSL=false
    PORT=3000
    ```
 
@@ -155,6 +166,8 @@ To stop it:
 ```bash
 npm run db:down
 ```
+
+For hosted databases that require SSL, set `DATABASE_SSL=true`. If you set `SLACK_INSTALL_ENCRYPTION_KEY`, bot tokens will be encrypted at rest before being stored.
 
 ## Hosting
 

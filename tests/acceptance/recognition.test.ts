@@ -51,7 +51,7 @@ describe('Recognition Flow Acceptance Tests', () => {
       reason: 'helped me debug a critical issue',
       value: 'teamwork',
       points: 3
-    }));
+    }), undefined);
   });
   
   test('should validate against stored company values', async () => {
@@ -101,7 +101,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     expect(recordSpy).toHaveBeenCalledTimes(1); 
     
     // Verify canGivePoints was called with the right parameters
-    expect(canGivePointsSpy).toHaveBeenCalledWith(giverId, 3);
+    expect(canGivePointsSpy).toHaveBeenCalledWith(giverId, 3, undefined);
   });
   
   test('should prevent self-recognition', async () => {
@@ -161,7 +161,7 @@ describe('Recognition Flow Acceptance Tests', () => {
 
     expect(recognition).not.toBeNull();
     expect(recognition?.points).toBe(2);
-    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ points: 2 }));
+    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ points: 2 }), undefined);
   });
 
   test('should handle multiple recognitions in a single message', async () => {
@@ -231,7 +231,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     const recognition = await recognitionService.processRecognition(text, giverId as string);
     expect(recognition).not.toBeNull();
     expect(recognition?.value).toBe('general');
-    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ value: 'general' }));
+    expect(recordSpy).toHaveBeenCalledWith(expect.objectContaining({ value: 'general' }), undefined);
   });
 
   test('should default to general for multi-recognition without #value tag', async () => {

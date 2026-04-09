@@ -69,7 +69,7 @@ describe('Reward Redemption Acceptance Tests', () => {
     const result = await commandService.redeemReward(userId, 'Coffee Voucher');
     
     expect(result.success).toBe(true);
-    expect(redeemSpy).toHaveBeenCalledWith(userId, 'Coffee Voucher');
+    expect(redeemSpy).toHaveBeenCalledWith(userId, 'Coffee Voucher', undefined);
     expect(result.message).toContain('redeemed "Coffee Voucher"');
     expect(result.message).toContain('50 points');
     expect(result.data).toBeDefined();

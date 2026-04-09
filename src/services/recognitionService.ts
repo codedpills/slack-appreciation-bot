@@ -188,7 +188,7 @@ export class RecognitionService {
     const recognitions = await this.parseRecognitionsWithGroups(text, giverId, client, workspaceId);
     const validRecognitions: Recognition[] = [];
     for (const recognition of recognitions) {
-      if (!this.dataService.canGivePoints(giverId, recognition.points, workspaceId)) {
+      if (!(await this.dataService.canGivePoints(giverId, recognition.points, workspaceId))) {
         continue;
       }
       await this.dataService.recordRecognition(recognition, workspaceId);

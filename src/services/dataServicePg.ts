@@ -25,9 +25,8 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     rewards: [{ name: 'Coffee Voucher', cost: 50 }],
     label: 'points'
   };
-  // ensure tables exist
-  (async () => {
-    await pool.query(`
+  const initPromise = pool
+    .query(`
       CREATE TABLE IF NOT EXISTS workspaces (
         id TEXT PRIMARY KEY,
         bot_user_id TEXT,
@@ -46,16 +45,24 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
         record JSONB NOT NULL,
         PRIMARY KEY (workspace_id, user_id)
       );
-    `);
-  })().catch(console.error);
+    `)
+    .catch(error => {
+      console.error('Failed to initialize database schema:', error);
+      throw error;
+    });
 
   const normalizeWorkspaceId = (workspaceId?: string) => {
     const normalized = workspaceId?.trim();
     return normalized && normalized.length > 0 ? normalized : 'default';
   };
 
+  const ensureInit = async () => {
+    await initPromise;
+  };
+
   const service: IDataService = {
     getConfig: async (workspaceId) => {
+      await ensureInit();
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const res = await pool.query(
         'SELECT value FROM config WHERE workspace_id=$1 AND key=$2',
@@ -63,10 +70,17 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
       );
       if (res.rowCount === 0) {
         await pool.query(
-          'INSERT INTO config(workspace_id,key,value) VALUES($1,$2,$3)',
+          'INSERT INTO config(workspace_id,key,value) VALUES($1,$2,$3) ON CONFLICT(workspace_id,key) DO NOTHING',
           [workspaceKey, 'config', defaults]
         );
-        return { ...defaults };
+        const insertedRes = await pool.query(
+          'SELECT value FROM config WHERE workspace_id=$1 AND key=$2',
+          [workspaceKey, 'config']
+        );
+        if (insertedRes.rowCount === 0) {
+          return { ...defaults };
+        }
+        return insertedRes.rows[0].value;
       }
       return res.rows[0].value;
     },
@@ -124,6 +138,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     },
 
     getUserRecord: async (userId, workspaceId) => {
+      await ensureInit();
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const today = new Date().toISOString().split('T')[0];
       const res = await pool.query(
@@ -133,15 +148,20 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
       if (res.rowCount === 0) {
         const record = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
         await pool.query(
-          'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3)',
+          'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3) ON CONFLICT(workspace_id,user_id) DO NOTHING',
           [workspaceKey, userId, record]
         );
-        return record;
+        const insertedRes = await pool.query(
+          'SELECT record FROM users WHERE workspace_id=$1 AND user_id=$2',
+          [workspaceKey, userId]
+        );
+        return insertedRes.rowCount === 0 ? record : insertedRes.rows[0].record;
       }
       return res.rows[0].record;
     },
 
     getAllUsers: async (workspaceId) => {
+      await ensureInit();
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const res = await pool.query(
         'SELECT user_id,record FROM users WHERE workspace_id=$1',
@@ -151,6 +171,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     },
 
     resetUserPoints: async (userId, workspaceId) => {
+      await ensureInit();
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const today = new Date().toISOString().split('T')[0];
       const record = { total: 0, byValue: {}, dailyGiven: 0, lastReset: today };
@@ -161,6 +182,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     },
 
     recordRecognition: async (recog, workspaceId) => {
+      await ensureInit();
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const { giver, receiver, value, points } = recog;
       const today = new Date().toISOString().split('T')[0];
@@ -211,6 +233,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     setLabel: async (lbl, workspaceId) => service.updateConfig({ label: lbl }, workspaceId),
 
     upsertWorkspaceInstall: async (install: WorkspaceInstall) => {
+        await ensureInit();
       await pool.query(
         `INSERT INTO workspaces(id, bot_user_id, bot_token, installed_at)
          VALUES($1, $2, $3, $4)
@@ -221,6 +244,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     },
 
     getWorkspaceInstall: async (workspaceId: string) => {
+        await ensureInit();
       const res = await pool.query(
         'SELECT id, bot_user_id, bot_token, installed_at FROM workspaces WHERE id=$1',
         [workspaceId]

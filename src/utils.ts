@@ -75,7 +75,7 @@ export async function publishHomeView(
 ) {
   const { users, config, rewards } = await loadState(dataService, workspaceId);
   const { values, dailyLimit, label } = config;
-  const isAdmin = commandService.isAdmin(userId);
+  const isAdmin = commandService.isAdmin(userId, workspaceId);
   if (!/^U[A-Z0-9]+$/.test(userId) || !users[userId]) {
     console.error(`Invalid or missing userId: ${userId}`);
     return;

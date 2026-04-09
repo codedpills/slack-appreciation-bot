@@ -184,7 +184,7 @@ export class CommandService {
       }
     }
 
-    const userRecord = this.dataService.getUserRecord(userId, workspaceId);
+    const userRecord = await this.dataService.getUserRecord(userId, workspaceId);
     
     if (!userRecord) {
       return { success: false, message: `User ${target} not found.` };
@@ -232,10 +232,11 @@ export class CommandService {
     const success = await this.dataService.redeemReward(userId, rewardName, workspaceId);
     
     if (success) {
+      const updatedUser = { ...user, total: user.total - reward.cost };
       return {
         success: true,
         message: `You've redeemed "${rewardName}" for ${reward.cost} points! Your new balance is ${user.total - reward.cost} points.`,
-        data: { reward, user }
+        data: { reward, user: updatedUser }
       };
     } else {
       return {
