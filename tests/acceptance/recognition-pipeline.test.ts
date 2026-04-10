@@ -7,7 +7,9 @@ describe('RecognitionPipeline', () => {
       dailyLimit: 5,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
 
     const dataService = {
@@ -40,7 +42,9 @@ describe('RecognitionPipeline', () => {
       dailyLimit: 5,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
 
     const dataService = {
@@ -67,7 +71,9 @@ describe('RecognitionPipeline', () => {
       dailyLimit: 5,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
 
     const dataService = {

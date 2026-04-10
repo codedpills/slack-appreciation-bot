@@ -7,6 +7,8 @@ export interface AppConfig {
   values: string[];
   rewards: Reward[];
   label: string;
+  gifEnabled: boolean;
+  gifMinPoints: number;
 }
 
 export interface Reward {

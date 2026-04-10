@@ -5,7 +5,7 @@ export type ViewContext = {
   section?: string;
   users: Record<string, UserRecord>;
   rewards: Reward[];
-  config: Pick<AppConfig, 'values' | 'dailyLimit' | 'label'>;
+  config: Pick<AppConfig, 'values' | 'dailyLimit' | 'label' | 'gifEnabled' | 'gifMinPoints'>;
   isAdmin: boolean;
   currentUser?: UserRecord;
 };
@@ -20,7 +20,9 @@ export const buildHomeViewFromContext = (ctx: ViewContext) => {
     ctx.isAdmin,
     ctx.config.dailyLimit,
     ctx.config.label,
-    ctx.currentUser
+    ctx.currentUser,
+    ctx.config.gifEnabled,
+    ctx.config.gifMinPoints
   );
 };
 
@@ -36,7 +38,9 @@ export const buildHomeView = (
   isAdmin = false,
   dailyLimit = 0,
   label = 'points',
-  currentUser?: UserRecord
+  currentUser?: UserRecord,
+  gifEnabled = true,
+  gifMinPoints = 3
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -109,6 +113,16 @@ export const buildHomeView = (
         { type: 'button', text: { type: 'plain_text', text: 'Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' }
       ] },
       { type: 'divider' },
+      // GIF Settings
+      { type: 'section', text: { type: 'mrkdwn', text: `*Recognition GIFs:* ${gifEnabled ? 'Enabled' : 'Disabled'}` } },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: gifEnabled ? 'Disable GIFs' : 'Enable GIFs', emoji: true }, action_id: 'settings_toggle_gif' }
+      ] },
+      { type: 'section', text: { type: 'mrkdwn', text: `*GIF Minimum Points:* ${gifMinPoints}` } },
+      { type: 'actions', elements: [
+        { type: 'button', text: { type: 'plain_text', text: 'Set GIF Minimum', emoji: true }, action_id: 'settings_set_gif_min_points' }
+      ] },
+      { type: 'divider' },
       // Company Values
       { type: 'section', text: { type: 'mrkdwn', text: `*Company Values:* ${values.join(', ')}` } },
       { type: 'actions', elements: [
@@ -137,41 +151,42 @@ export const buildHomeView = (
   } else {
     contentBlocks = [
       {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*Your Stats:*
-• Total ${label.charAt(0).toUpperCase() + label.slice(1)}: *${currentUserData.total}*
-• Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
-        }
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Your Stats:*
+  • Total ${label.charAt(0).toUpperCase() + label.slice(1)}: *${currentUserData.total}*
+  • Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
+      }
       },
+      { type: 'divider' },
       { type: 'section', text: { type: 'mrkdwn', text: `*${label.charAt(0).toUpperCase() + label.slice(1)} by Value:*` } },
       { type: 'section', fields: values.map(value => ({ type: 'mrkdwn', text: `*#${value}:* ${currentUserData.byValue[value] || 0} ${label}` })) },
       { type: 'divider' },
       {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*How to recognize teammates:*
-Valid examples:
-• \`@username +++ reason #value\`
-• \`@username ++ reason\` _(no tag ⇒ defaults to #general)_
-• \`@alice @bob +++ great collaboration #innovation\`
-• \`@dev_team ++ fixed the bug #teamwork\`
-Available values: ${[...values.map(v => `#${v}`), '#general'].join(', ')}
-Invalid examples:
-• Missing plus signs: \`@username did a great job #teamwork\`
-• No reason text: \`@username +++ #teamwork\`
-• Unknown value tag: \`@username ++ awesome work #nonexistent\``
-        }
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*How to recognize teammates:*
+  Valid examples:
+  • \`@username +++ reason #value\`
+  • \`@username ++ reason\` _(no tag ⇒ defaults to #general)_
+  • \`@alice @bob +++ great collaboration #innovation\`
+  • \`@dev_team ++ fixed the bug #teamwork\`
+  Available values: ${[...values.map(v => `#${v}`), '#general'].join(', ')}
+  Invalid examples:
+  • Missing plus signs: \`@username did a great job #teamwork\`
+  • No reason text: \`@username +++ #teamwork\`
+  • Unknown value tag: \`@username ++ awesome work #nonexistent\``
+      }
       },
       {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*How to redeem rewards:*
-Use the \`/redeem\` command to spend your ${label} on available rewards.`
-        }
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*How to redeem rewards:*
+  Use the \`/redeem\` command to spend your ${label} on available rewards.`
+      }
       }
     ];
   }

@@ -23,7 +23,9 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     dailyLimit: 10,
     values: ['teamwork'],
     rewards: [{ name: 'Coffee Voucher', cost: 50 }],
-    label: 'points'
+    label: 'points',
+    gifEnabled: true,
+    gifMinPoints: 3
   };
   const initPromise = pool
     .query(`
@@ -231,6 +233,8 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     resetRewards: async (workspaceId) => service.updateConfig({ rewards: [] }, workspaceId),
     resetValues: async (workspaceId) => service.updateConfig({ values: ['teamwork'] }, workspaceId),
     setLabel: async (lbl, workspaceId) => service.updateConfig({ label: lbl }, workspaceId),
+    setGifEnabled: async (enabled, workspaceId) => service.updateConfig({ gifEnabled: enabled }, workspaceId),
+    setGifMinPoints: async (minPoints, workspaceId) => service.updateConfig({ gifMinPoints: minPoints }, workspaceId),
 
     upsertWorkspaceInstall: async (install: WorkspaceInstall) => {
         await ensureInit();

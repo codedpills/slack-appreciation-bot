@@ -5,6 +5,7 @@ import { loadState } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
 import { StateLoader } from '../services/stateLoader';
 import { HomeViewService } from '../services/homeViewService';
+import { buildHomeViewFromContext } from '../views/home';
 
 export function registerSettingsHandlers(
   app: App,
@@ -26,7 +27,7 @@ export function registerSettingsHandlers(
     await commandService.resetAllPoints(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -34,7 +35,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -52,7 +53,7 @@ export function registerSettingsHandlers(
     const result = await commandService.resetRewards(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -60,13 +61,100 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
     });
   });
 
+  // Toggle GIFs
+  app.action('settings_toggle_gif', async ({ body, ack, client }) => {
+    await ack();
+    const userId = (body as any).user.id;
+    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
+    commandService.setWorkspaceAdmins(workspaceId, admins);
+    if (!commandService.isAdmin(userId, workspaceId)) {
+      await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can update GIF settings.' });
+      return;
+    }
+    const { config } = await loadState(dataService, workspaceId);
+    const nextValue = config.gifEnabled ? 'off' : 'on';
+    const result = await commandService.setGifEnabled(userId, nextValue, workspaceId);
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+    const { users, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = await dataService.getConfig(workspaceId);
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
+        isAdmin: true,
+        currentUser
+      })
+    });
+  });
+
+  // Set GIF Minimum Points Modal
+  app.action('settings_set_gif_min_points', async ({ body, ack, client }) => {
+    await ack();
+    const userId = (body as any).user.id;
+    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    await client.views.open({
+      trigger_id: (body as any).trigger_id,
+      view: {
+        type: 'modal' as const,
+        callback_id: 'settings_set_gif_min_points_modal',
+        title: { type: 'plain_text', text: 'Set GIF Minimum', emoji: true },
+        submit: { type: 'plain_text', text: 'Set', emoji: true },
+        close: { type: 'plain_text', text: 'Cancel', emoji: true },
+        blocks: [
+          {
+            type: 'input' as const,
+            block_id: 'gif_min_points_block',
+            element: {
+              type: 'plain_text_input' as const,
+              action_id: 'gif_min_points_input',
+              placeholder: { type: 'plain_text', text: 'Enter a number', emoji: true }
+            },
+            label: { type: 'plain_text', text: 'GIF Minimum Points', emoji: true }
+          }
+        ]
+      }
+    });
+  });
+  app.view('settings_set_gif_min_points_modal', async ({ ack, body, view, client }) => {
+    await ack();
+    const userId = body.user.id;
+    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
+    commandService.setWorkspaceAdmins(workspaceId, admins);
+    if (!commandService.isAdmin(userId, workspaceId)) {
+      await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can update GIF settings.' });
+      return;
+    }
+    const minPointsValue = view.state.values.gif_min_points_block.gif_min_points_input.value || '';
+    const result = await commandService.setGifMinPoints(userId, minPointsValue, workspaceId);
+    await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
+        isAdmin: true,
+        currentUser
+      })
+    });
+  });
   // Reset Values
   app.action('settings_reset_values', async ({ body, ack, client }) => {
     await ack();
@@ -78,7 +166,7 @@ export function registerSettingsHandlers(
     const result = await commandService.resetValues(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -86,7 +174,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -135,7 +223,7 @@ export function registerSettingsHandlers(
     const result = await commandService.setDailyLimit(userId, limitValue, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -143,7 +231,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -192,7 +280,7 @@ export function registerSettingsHandlers(
     const result = await commandService.addValue(userId, value, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -200,7 +288,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -251,7 +339,7 @@ export function registerSettingsHandlers(
     const result = await commandService.removeValue(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -259,7 +347,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -301,7 +389,7 @@ export function registerSettingsHandlers(
     const result = await commandService.addReward(userId, name, cost, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -309,7 +397,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -350,7 +438,7 @@ export function registerSettingsHandlers(
     const result = await commandService.removeReward(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -358,7 +446,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -398,7 +486,7 @@ export function registerSettingsHandlers(
     const result = await commandService.resetPoints(userId, target, client, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -406,7 +494,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true,
         currentUser
       })
@@ -451,7 +539,7 @@ export function registerSettingsHandlers(
     const result = await commandService.setLabel(userId, newLabel, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: buildHomeViewFromContext({
@@ -459,7 +547,7 @@ export function registerSettingsHandlers(
         section: 'Settings',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin: true
       })
     });

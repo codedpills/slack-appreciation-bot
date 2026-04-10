@@ -21,7 +21,7 @@ export function registerHomeHandlers(
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -29,7 +29,7 @@ export function registerHomeHandlers(
         section: 'Home',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin,
         currentUser
       })
@@ -45,7 +45,7 @@ export function registerHomeHandlers(
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
-    const { values, dailyLimit, label } = config;
+    const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -53,7 +53,7 @@ export function registerHomeHandlers(
         section: selectedSection,
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin,
         currentUser
       })

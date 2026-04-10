@@ -10,7 +10,9 @@ describe('StateLoader', () => {
       dailyLimit: 10,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
     const rewards: Reward[] = [{ name: 'Coffee', cost: 50 }];
 
@@ -42,7 +44,9 @@ describe('StateLoader', () => {
       dailyLimit: 10,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
     const rewards: Reward[] = [{ name: 'Coffee', cost: 50 }];
 
