@@ -59,7 +59,9 @@ describe('Recognition Flow Acceptance Tests', () => {
       dailyLimit: 5,
       values: ['teamwork', 'innovation'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     });
     
     // Valid recognition with recognized value
@@ -119,7 +121,9 @@ describe('Recognition Flow Acceptance Tests', () => {
       dailyLimit: 5,
       values: ['teamwork', 'innovation', 'creativity'],
       rewards: [],
-      label: 'coins'
+      label: 'coins',
+      gifEnabled: true,
+      gifMinPoints: 3
     });
     
     const validFormats = [

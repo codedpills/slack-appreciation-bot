@@ -18,7 +18,9 @@ describe('Home View Builder', () => {
       config: {
         values,
         dailyLimit: 10,
-        label: 'points'
+        label: 'points',
+        gifEnabled: true,
+        gifMinPoints: 3
       },
       isAdmin: false
     };
@@ -109,7 +111,8 @@ describe('Home View Builder', () => {
     // Verify presence of action buttons
     const actionBlocks = blocks.filter(b => b.type === 'actions');
     const expectedIds = [
-      'settings_set_daily_limit','settings_add_value',
+      'settings_set_daily_limit','settings_toggle_gif',
+      'settings_set_gif_min_points','settings_add_value',
       'settings_remove_value','settings_add_reward',
       'settings_remove_reward','settings_reset_user',
       'settings_reset_all'
@@ -140,7 +143,8 @@ describe('Home View Builder', () => {
     const actionIds = blocks.filter(b => b.type === 'actions').flatMap(b => b.elements.map((el: any) => el.action_id));
     expect(actionIds).toEqual(
       expect.arrayContaining([
-        'settings_set_daily_limit', 'settings_add_value','settings_remove_value',
+        'settings_set_daily_limit','settings_toggle_gif','settings_set_gif_min_points',
+        'settings_add_value','settings_remove_value',
         'settings_add_reward','settings_remove_reward','settings_reset_user','settings_reset_all'
       ])
     );

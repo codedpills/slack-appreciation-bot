@@ -53,7 +53,7 @@ export async function publishHomeView(
   const homeViewService = new HomeViewService();
   const loader = new StateLoader(dataService);
   const { users, config, rewards, currentUser } = await loader.loadHomeState(userId, workspaceId);
-  const { values, dailyLimit, label } = config;
+  const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
   const isAdmin = commandService.isAdmin(userId, workspaceId);
   if (!/^U[A-Z0-9]+$/.test(userId) || !users[userId]) {
     console.error(`Invalid or missing userId: ${userId}`);
@@ -67,7 +67,7 @@ export async function publishHomeView(
         section: 'Home',
         users,
         rewards,
-        config: { values, dailyLimit, label },
+        config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin,
         currentUser
       })

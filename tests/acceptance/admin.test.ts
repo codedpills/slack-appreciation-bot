@@ -198,4 +198,29 @@ describe('Admin Commands Acceptance Tests', () => {
     expect(userResult.success).toBe(false);
     expect(userResult.message).toContain('Only admins');
   });
+
+  test('should allow admins to update GIF settings', async () => {
+    const setGifEnabledSpy = jest.spyOn(dataService, 'setGifEnabled')
+      .mockImplementation(async () => {});
+    const setGifMinPointsSpy = jest.spyOn(dataService, 'setGifMinPoints')
+      .mockImplementation(async () => {});
+
+    const enableResult = await commandService.setGifEnabled(adminUserId, 'on');
+    expect(enableResult.success).toBe(true);
+    expect(setGifEnabledSpy).toHaveBeenCalledWith(true, undefined);
+
+    const disableResult = await commandService.setGifEnabled(adminUserId, 'off');
+    expect(disableResult.success).toBe(true);
+    expect(setGifEnabledSpy).toHaveBeenCalledWith(false, undefined);
+
+    const invalidResult = await commandService.setGifEnabled(adminUserId, 'maybe');
+    expect(invalidResult.success).toBe(false);
+
+    const minPointsResult = await commandService.setGifMinPoints(adminUserId, '4');
+    expect(minPointsResult.success).toBe(true);
+    expect(setGifMinPointsSpy).toHaveBeenCalledWith(4, undefined);
+
+    const nonAdminResult = await commandService.setGifMinPoints(regularUserId, '4');
+    expect(nonAdminResult.success).toBe(false);
+  });
 });

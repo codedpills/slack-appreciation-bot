@@ -115,6 +115,16 @@ export interface IDataWriter {
   setLabel(label: string, workspaceId?: string): Promise<void>;
 
   /**
+   * Enable or disable recognition GIFs
+   */
+  setGifEnabled(enabled: boolean, workspaceId?: string): Promise<void>;
+
+  /**
+   * Set the minimum points required to show a GIF
+   */
+  setGifMinPoints(minPoints: number, workspaceId?: string): Promise<void>;
+
+  /**
    * Store or update workspace install details
    */
   upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void>;

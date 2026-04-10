@@ -12,7 +12,7 @@ describe('HomeViewService', () => {
       userId: 'U1',
       users,
       rewards: [],
-      config: { values: ['integrity', 'innovation'], dailyLimit: 10, label: 'coins' },
+      config: { values: ['integrity', 'innovation'], dailyLimit: 10, label: 'coins', gifEnabled: true, gifMinPoints: 3 },
       isAdmin: false
     });
 

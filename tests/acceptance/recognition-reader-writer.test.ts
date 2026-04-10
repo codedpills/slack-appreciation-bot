@@ -7,7 +7,9 @@ describe('RecognitionService with split reader/writer', () => {
       dailyLimit: 5,
       values: ['teamwork'],
       rewards: [],
-      label: 'points'
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
     };
 
     const reader = {

@@ -281,6 +281,42 @@ export class CommandService {
     await this.dataService.setLabel(label.trim(), workspaceId);
     return { success: true, message: `Points label set to "${label.trim()}".` };
   }
+
+  async setGifEnabled(userId: string, value: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
+      return { success: false, message: 'Only admins can update GIF settings.' };
+    }
+
+    const normalized = value.trim().toLowerCase();
+    const truthy = ['on', 'true', 'yes', 'enable', 'enabled'];
+    const falsy = ['off', 'false', 'no', 'disable', 'disabled'];
+
+    if (truthy.includes(normalized)) {
+      await this.dataService.setGifEnabled(true, workspaceId);
+      return { success: true, message: 'Recognition GIFs enabled.' };
+    }
+
+    if (falsy.includes(normalized)) {
+      await this.dataService.setGifEnabled(false, workspaceId);
+      return { success: true, message: 'Recognition GIFs disabled.' };
+    }
+
+    return { success: false, message: 'Please specify on/off for GIFs.' };
+  }
+
+  async setGifMinPoints(userId: string, minPointsStr: string, workspaceId?: string): Promise<CommandResult> {
+    if (!this.isAdmin(userId, workspaceId)) {
+      return { success: false, message: 'Only admins can update GIF settings.' };
+    }
+
+    const minPoints = parseInt(minPointsStr, 10);
+    if (isNaN(minPoints) || minPoints < 1) {
+      return { success: false, message: 'Please provide a valid minimum GIF points value.' };
+    }
+
+    await this.dataService.setGifMinPoints(minPoints, workspaceId);
+    return { success: true, message: `GIF minimum points set to ${minPoints}.` };
+  }
 }
 
 export const createCommandService = (

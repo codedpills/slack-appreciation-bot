@@ -31,10 +31,14 @@ export class CommandRouter {
             const newLabel = args.slice(2).join(' ');
             return this.commandService.setLabel(userId, newLabel, workspaceId);
           }
+          case 'gif_enabled':
+            return this.commandService.setGifEnabled(userId, args[2] || '', workspaceId);
+          case 'gif_min_points':
+            return this.commandService.setGifMinPoints(userId, args[2] || '', workspaceId);
           default:
             return {
               success: false,
-              message: 'Invalid config command. Available: daily_limit, add_value, remove_value, label'
+              message: 'Invalid config command. Available: daily_limit, add_value, remove_value, label, gif_enabled, gif_min_points'
             };
         }
       }

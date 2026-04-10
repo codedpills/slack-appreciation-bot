@@ -16,6 +16,7 @@
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
+    "@giphy/js-fetch-api": "^5.3.0",
     "@slack/bolt": "^3.12.2",
     "dotenv": "^16.0.3",
     "pg": "^8.16.0"

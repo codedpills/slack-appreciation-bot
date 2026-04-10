@@ -37,7 +37,9 @@ export class DataService implements IDataService {
           dailyLimit: 10,
           values: ['teamwork'],
           rewards: [ { name: 'Coffee Voucher', cost: 50 } ],
-          label: 'points'
+          label: 'points',
+          gifEnabled: true,
+          gifMinPoints: 3
         };
         return {
           config: { ...defaultConfig, ...parsed.config },
@@ -56,7 +58,9 @@ export class DataService implements IDataService {
         rewards: [
           { name: 'Coffee Voucher', cost: 50 },
         ],
-        label: 'points'
+        label: 'points',
+        gifEnabled: true,
+        gifMinPoints: 3
       },
       users: {}
     };
@@ -346,6 +350,16 @@ export class DataService implements IDataService {
    */
   async setLabel(label: string, _workspaceId?: string): Promise<void> {
     this.state.config.label = label;
+    await this.saveState();
+  }
+
+  async setGifEnabled(enabled: boolean, _workspaceId?: string): Promise<void> {
+    this.state.config.gifEnabled = enabled;
+    await this.saveState();
+  }
+
+  async setGifMinPoints(minPoints: number, _workspaceId?: string): Promise<void> {
+    this.state.config.gifMinPoints = minPoints;
     await this.saveState();
   }
 
