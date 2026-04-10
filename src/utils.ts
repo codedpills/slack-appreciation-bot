@@ -1,13 +1,12 @@
 import { App } from '@slack/bolt';
 import { IDataService } from './services/dataServiceInterface';
 import { CommandService } from './services/commandService';
-import { buildHomeView } from './views/homeView';
+import { HomeViewService } from './services/homeViewService';
+import { StateLoader } from './services/stateLoader';
 
 export async function loadState(dataService: IDataService, workspaceId?: string) {
-  const users = await dataService.getAllUsers(workspaceId);
-  const config = await dataService.getConfig(workspaceId);
-  const rewards = await dataService.getRewards(workspaceId);
-  return { users, config, rewards };
+  const loader = new StateLoader(dataService);
+  return loader.loadState(workspaceId);
 }
 
 export async function getAdminUsers(client: any): Promise<string[]> {
@@ -24,28 +23,6 @@ export async function getAdminUsers(client: any): Promise<string[]> {
     console.error('Error fetching admin users:', error);
     return [];
   }
-}
-
-export type AdminCacheEntry = {
-  admins: string[];
-  cachedAt: number;
-};
-
-export async function getAdminUsersCached(
-  client: any,
-  workspaceId: string,
-  cache: Map<string, AdminCacheEntry>,
-  ttlMs = 5 * 60 * 1000
-): Promise<string[]> {
-  const now = Date.now();
-  const cached = cache.get(workspaceId);
-  if (cached && now - cached.cachedAt < ttlMs) {
-    return cached.admins;
-  }
-
-  const admins = await getAdminUsers(client);
-  cache.set(workspaceId, { admins, cachedAt: now });
-  return admins;
 }
 
 export async function joinAllChannels(client: any) {
@@ -73,7 +50,9 @@ export async function publishHomeView(
   commandService: CommandService,
   workspaceId?: string
 ) {
-  const { users, config, rewards } = await loadState(dataService, workspaceId);
+  const homeViewService = new HomeViewService();
+  const loader = new StateLoader(dataService);
+  const { users, config, rewards, currentUser } = await loader.loadHomeState(userId, workspaceId);
   const { values, dailyLimit, label } = config;
   const isAdmin = commandService.isAdmin(userId, workspaceId);
   if (!/^U[A-Z0-9]+$/.test(userId) || !users[userId]) {
@@ -83,7 +62,15 @@ export async function publishHomeView(
   try {
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Home',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin,
+        currentUser
+      })
     });
   } catch (error) {
     console.error('Error publishing home view:', error);

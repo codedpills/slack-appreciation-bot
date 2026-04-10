@@ -1,27 +1,38 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsersCached, loadState, publishHomeView } from '../utils';
-import { buildHomeView } from '../views/homeView';
+import { AdminCacheService } from '../services/adminCacheService';
+import { StateLoader } from '../services/stateLoader';
+import { HomeViewService } from '../services/homeViewService';
 
 export function registerHomeHandlers(
   app: App,
   dataService: IDataService,
-  commandService: CommandService
+  commandService: CommandService,
+  adminCacheService: AdminCacheService
 ) {
-  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
+  const stateLoader = new StateLoader(dataService);
+  const homeViewService = new HomeViewService();
 
   app.event('app_home_opened', async ({ event, client }) => {
     const userId = (event as any).user;
     const workspaceId = (event as any).team || (event as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, 'Home', rewards, isAdmin, dailyLimit, label)
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Home',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin,
+        currentUser
+      })
     });
   });
 
@@ -30,14 +41,22 @@ export function registerHomeHandlers(
     const selectedSection = (action as any).selected_option.value;
     const userId = (body as any).user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
     await client.views.publish({
       user_id: userId,
-      view: buildHomeView(users, values, userId, selectedSection, rewards, isAdmin, dailyLimit, label)
+      view: homeViewService.buildHomeView({
+        userId,
+        section: selectedSection,
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin,
+        currentUser
+      })
     });
   });
 }

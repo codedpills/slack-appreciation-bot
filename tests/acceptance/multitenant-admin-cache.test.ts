@@ -1,8 +1,7 @@
-import { getAdminUsersCached } from '../../src/utils';
+import { AdminCacheService } from '../../src/services/adminCacheService';
 
 describe('Workspace-scoped admin cache', () => {
   test('caches admins per workspace', async () => {
-    const cache = new Map();
     const client = {
       users: {
         list: jest.fn().mockResolvedValue({
@@ -15,9 +14,11 @@ describe('Workspace-scoped admin cache', () => {
       }
     } as any;
 
-    const adminsT1 = await getAdminUsersCached(client, 'T1', cache, 10000);
-    const adminsT2 = await getAdminUsersCached(client, 'T2', cache, 10000);
-    const adminsT1Again = await getAdminUsersCached(client, 'T1', cache, 10000);
+    const service = new AdminCacheService(10000);
+
+    const adminsT1 = await service.getAdmins(client, 'T1');
+    const adminsT2 = await service.getAdmins(client, 'T2');
+    const adminsT1Again = await service.getAdmins(client, 'T1');
 
     expect(adminsT1).toEqual(['U1']);
     expect(adminsT2).toEqual(['U1']);

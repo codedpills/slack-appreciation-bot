@@ -1,14 +1,49 @@
 import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall } from '../types';
 
 /**
- * Common interface for data storage implementations
+ * Read-only interface for data access
  */
-export interface IDataService {
+export interface IDataReader {
   /**
    * Retrieve application configuration
    */
   getConfig(workspaceId?: string): Promise<AppState['config']>;
 
+  /**
+   * List all rewards
+   */
+  getRewards(workspaceId?: string): Promise<Reward[]>;
+
+  /**
+   * Get a specific reward
+   */
+  getReward(name: string, workspaceId?: string): Promise<Reward | undefined>;
+
+  /**
+   * Fetch or initialize a user record
+   */
+  getUserRecord(userId: string, workspaceId?: string): Promise<UserRecord>;
+
+  /**
+   * List all user records
+   */
+  getAllUsers(workspaceId?: string): Promise<Record<string, UserRecord>>;
+
+  /**
+   * Check if user can give points
+   */
+  canGivePoints(userId: string, points: number, workspaceId?: string): Promise<boolean>;
+
+  /**
+   * Fetch workspace install details
+   */
+  getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null>;
+}
+
+/**
+ * Write-only interface for data mutations
+ */
+export interface IDataWriter {
   /**
    * Update multiple config fields
    */
@@ -40,26 +75,6 @@ export interface IDataService {
   removeReward(name: string, workspaceId?: string): Promise<void>;
 
   /**
-   * List all rewards
-   */
-  getRewards(workspaceId?: string): Promise<Reward[]>;
-
-  /**
-   * Get a specific reward
-   */
-  getReward(name: string, workspaceId?: string): Promise<Reward | undefined>;
-
-  /**
-   * Fetch or initialize a user record
-   */
-  getUserRecord(userId: string, workspaceId?: string): Promise<UserRecord>;
-
-  /**
-   * List all user records
-   */
-  getAllUsers(workspaceId?: string): Promise<Record<string, UserRecord>>;
-
-  /**
    * Reset a specific user's points
    */
   resetUserPoints(userId: string, workspaceId?: string): Promise<void>;
@@ -68,11 +83,6 @@ export interface IDataService {
    * Record a recognition event
    */
   recordRecognition(recognition: Recognition, workspaceId?: string): Promise<void>;
-
-  /**
-   * Check if user can give points
-   */
-  canGivePoints(userId: string, points: number, workspaceId?: string): Promise<boolean>;
 
   /**
    * Redeem a reward
@@ -108,12 +118,12 @@ export interface IDataService {
    * Store or update workspace install details
    */
   upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void>;
-
-  /**
-   * Fetch workspace install details
-   */
-  getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null>;
 }
+
+/**
+ * Common interface for data storage implementations
+ */
+export interface IDataService extends IDataReader, IDataWriter {}
 
 /**
  * Factory signature for dataService implementations

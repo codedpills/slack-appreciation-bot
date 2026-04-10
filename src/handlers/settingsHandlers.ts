@@ -1,29 +1,44 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { getAdminUsersCached, loadState } from '../utils';
-import { buildHomeView } from '../views/homeView';
+import { loadState } from '../utils';
+import { AdminCacheService } from '../services/adminCacheService';
+import { StateLoader } from '../services/stateLoader';
+import { HomeViewService } from '../services/homeViewService';
 
 export function registerSettingsHandlers(
   app: App,
   dataService: IDataService,
   commandService: CommandService,
+  adminCacheService: AdminCacheService,
 ) {
-  const adminCache = new Map<string, { admins: string[]; cachedAt: number }>();
+  const stateLoader = new StateLoader(dataService);
+  const homeViewService = new HomeViewService();
 
   // Reset All Points
   app.action('settings_reset_all', async ({ body, ack, client }) => {
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     await commandService.resetAllPoints(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: 'All user points have been reset.' });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Reset Rewards
@@ -31,14 +46,25 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetRewards(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Reset Values
@@ -46,14 +72,25 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) return;
     const result = await commandService.resetValues(userId, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Set Daily Limit Modal
@@ -88,7 +125,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can change the daily limit.' });
@@ -97,9 +134,20 @@ export function registerSettingsHandlers(
     const limitValue = view.state.values.daily_limit_block.daily_limit_input.value || "";
     const result = await commandService.setDailyLimit(userId, limitValue, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Add Value Modal
@@ -134,7 +182,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can add company values.' });
@@ -143,9 +191,20 @@ export function registerSettingsHandlers(
     const value = view.state.values.add_value_block.add_value_input.value || "";
     const result = await commandService.addValue(userId, value, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Remove Value Modal
@@ -182,7 +241,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can remove company values.' });
@@ -191,9 +250,20 @@ export function registerSettingsHandlers(
     const selected = view.state.values.remove_value_block.remove_value_select.selected_option?.value;
     const result = await commandService.removeValue(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Add Reward Modal & Submission
@@ -220,7 +290,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can add rewards.' });
@@ -230,9 +300,20 @@ export function registerSettingsHandlers(
     const cost = view.state.values.reward_cost_block.reward_cost_input.value || '';
     const result = await commandService.addReward(userId, name, cost, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Remove Reward Modal & Submission
@@ -259,7 +340,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can remove rewards.' });
@@ -268,9 +349,20 @@ export function registerSettingsHandlers(
     const selected = view.state.values.remove_reward_block.remove_reward_select.selected_option?.value;
     const result = await commandService.removeReward(userId, selected || '', workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Reset User Points Modal & Submission
@@ -296,7 +388,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can reset points.' });
@@ -305,9 +397,20 @@ export function registerSettingsHandlers(
     const target = view.state.values.reset_user_block.reset_user_input.value || '';
     const result = await commandService.resetPoints(userId, target, client, workspaceId);
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
-    const { users, config, rewards } = await loadState(dataService, workspaceId);
+    const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: homeViewService.buildHomeView({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true,
+        currentUser
+      })
+    });
   });
 
   // Set Label Modal & Submission
@@ -338,7 +441,7 @@ export function registerSettingsHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
-    const admins = await getAdminUsersCached(client, workspaceId, adminCache);
+    const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     if (!commandService.isAdmin(userId, workspaceId)) {
       await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Only admins can set the points label.' });
@@ -349,6 +452,16 @@ export function registerSettingsHandlers(
     await client.chat.postEphemeral({ channel: userId, user: userId, text: result.message });
     const { users, config, rewards } = await loadState(dataService, workspaceId);
     const { values, dailyLimit, label } = config;
-    await client.views.publish({ user_id: userId, view: buildHomeView(users, values, userId, 'Settings', rewards, true, dailyLimit, label) });
+    await client.views.publish({
+      user_id: userId,
+      view: buildHomeViewFromContext({
+        userId,
+        section: 'Settings',
+        users,
+        rewards,
+        config: { values, dailyLimit, label },
+        isAdmin: true
+      })
+    });
   });
 }

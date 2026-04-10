@@ -1,4 +1,4 @@
-import { buildHomeView } from '../../src/views/homeView';
+import { buildHomeView, buildHomeViewFromContext } from '../../src/views/home';
 import { UserRecord } from '../../src/types';
 
 describe('Home View Builder', () => {
@@ -8,6 +8,25 @@ describe('Home View Builder', () => {
   };
   const values = ['integrity', 'innovation'];
   const userId = 'U1';
+
+  test('builds home view from context', () => {
+    const ctx = {
+      userId,
+      section: 'Home',
+      users,
+      rewards: [],
+      config: {
+        values,
+        dailyLimit: 10,
+        label: 'points'
+      },
+      isAdmin: false
+    };
+
+    const view = buildHomeViewFromContext(ctx);
+
+    expect(view).toEqual(buildHomeView(users, values, userId));
+  });
 
   test('defaults to Home section', () => {
     const view = buildHomeView(users, values, userId);

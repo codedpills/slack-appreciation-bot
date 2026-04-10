@@ -18,7 +18,7 @@ describe('Recognition Flow Acceptance Tests', () => {
     };
   
     dataService = new DataService(testDataPath);
-    recognitionService = new RecognitionService(dataService);
+    recognitionService = new RecognitionService(dataService, dataService);
   });
   
   afterEach(() => {

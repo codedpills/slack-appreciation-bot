@@ -9,7 +9,7 @@ describe('Multi-tenant recognition isolation', () => {
     const pool = new Pool();
 
     const dataService = createDataService({ pool });
-    const recognitionService = new RecognitionService(dataService);
+    const recognitionService = new RecognitionService(dataService, dataService);
 
     await dataService.updateConfig({ values: ['teamwork'] }, 'T1');
     await dataService.updateConfig({ values: ['innovation'] }, 'T2');
