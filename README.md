@@ -4,12 +4,14 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
 
 ## Features
 
-- Recognition via "@user +++ for ... #value" syntax
-- Daily point budget enforcement
-- Company values tagging
-- App Home leaderboard
-- Admin configuration commands
-- Reward redemption system
+- Recognition via "@user +++ for ... #value" syntax (multi-user and usergroup aware)
+- Point awards based on `+` count with daily budget enforcement
+- Company values tagging with `#value` and a `#general` fallback
+- Celebration GIFs for recognitions (PG-rated, fixed-height to avoid scrolling)
+- App Home experience: stats, leaderboard, goodies store, admin settings
+- Admin configuration commands for limits, values, labels, rewards, and GIF controls
+- Reward redemption flow with modal or slash command
+- Postgres-backed storage with optional token encryption at rest
 - Zero-cost hosting compatibility
 
 ## Getting Started
@@ -41,6 +43,7 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
    SLACK_STATE_SECRET=your-random-state-secret
    SLACK_SIGNING_SECRET=your-signing-secret
    SLACK_SCOPES=chat:write,commands,users:read,usergroups:read,channels:read,im:read,mpim:read,groups:read,channels:history,groups:history,im:history,mpim:history
+   GIPHY_API_KEY=your-giphy-api-key
    DATABASE_URL=postgres://appreciation:appreciation@localhost:5432/appreciation
    DATABASE_SSL=false
    SLACK_INSTALL_ENCRYPTION_KEY=your-random-32-byte-secret
@@ -51,6 +54,7 @@ A Slack bot for peer-to-peer appreciation aligned with company values. This bot 
    ```
    SLACK_BOT_TOKEN=xoxb-your-bot-token
    SLACK_SIGNING_SECRET=your-signing-secret
+   GIPHY_API_KEY=your-giphy-api-key
    DATABASE_URL=postgres://appreciation:appreciation@localhost:5432/appreciation
    DATABASE_SSL=false
    PORT=3000
@@ -131,6 +135,8 @@ You can also recognize multiple users or groups in a single message:
 - `/points config add_value <value>` - Add a company value
 - `/points config remove_value <value>` - Remove a company value
 - `/points config label <label>` - Set a custom name for points (e.g. "kutanacoins")
+- `/points config gif_enabled on|off` - Enable or disable celebration GIFs
+- `/points config gif_min_points <n>` - Set the minimum points required for a GIF
 - `/points reward add "Reward Name" <cost>` - Add a redeemable reward
 - `/points reward remove "Reward Name"` - Remove a reward
 - `/points reset @user` - Reset a user's points to 0
@@ -149,9 +155,9 @@ The App Home shows:
   - **Home:** Your stats, points by value, how to recognize, and how to redeem.
   - **Recognition Leaderboard:** Top recognized team members this month.
   - **Goodies store:** Browse and redeem configured rewards via buttons.
-  - **Settings** (admins only): View and modify app configuration directly (daily limit, company values, rewards catalog, reset points) through interactive controls.
+   - **Settings** (admins only): View and modify app configuration directly (daily limit, company values, rewards catalog, GIF controls, reset points) through interactive controls.
 
-When in **Settings**, admins see current configuration values and buttons to set daily limits, add/remove values and rewards, or reset individual/all user points directly from the UI.
+When in **Settings**, admins see current configuration values and buttons to set daily limits, toggle GIFs, set GIF minimum points, add/remove values and rewards, or reset individual/all user points directly from the UI.
 
 ## Data Storage
 
