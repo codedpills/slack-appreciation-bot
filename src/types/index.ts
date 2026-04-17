@@ -44,6 +44,26 @@ export interface WorkspaceInstall {
   installedAt: string;
 }
 
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'none';
+
+export type BillingPeriod = 'monthly' | 'annual';
+
+export type PlanTier = 'up_to_25' | '25_to_100' | '100_plus';
+
+export interface SubscriptionRecord {
+  workspaceId: string;
+  status: SubscriptionStatus;
+  planTier?: PlanTier;
+  billingPeriod?: BillingPeriod;
+  provider?: string;
+  providerCustomerId?: string;
+  providerSubscriptionId?: string;
+  trialEndsAt?: string;
+  currentPeriodEndsAt?: string;
+  lastUserCount?: number;
+  updatedAt?: string;
+}
+
 export interface CommandResult {
   success: boolean;
   message: string;

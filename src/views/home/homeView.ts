@@ -1,4 +1,4 @@
-import { AppConfig, UserRecord, Reward } from '../../types';
+import { AppConfig, UserRecord, Reward, SubscriptionStatus, PlanTier, BillingPeriod } from '../../types';
 
 export type ViewContext = {
   userId: string;
@@ -8,6 +8,15 @@ export type ViewContext = {
   config: Pick<AppConfig, 'values' | 'dailyLimit' | 'label' | 'gifEnabled' | 'gifMinPoints'>;
   isAdmin: boolean;
   currentUser?: UserRecord;
+  billing?: {
+    enabled: boolean;
+    status?: SubscriptionStatus;
+    planTier?: PlanTier;
+    billingPeriod?: BillingPeriod;
+    trialEndsAt?: string;
+    upgradeUrl?: string;
+    portalUrl?: string;
+  };
 };
 
 export const buildHomeViewFromContext = (ctx: ViewContext) => {
@@ -22,7 +31,8 @@ export const buildHomeViewFromContext = (ctx: ViewContext) => {
     ctx.config.label,
     ctx.currentUser,
     ctx.config.gifEnabled,
-    ctx.config.gifMinPoints
+    ctx.config.gifMinPoints,
+    ctx.billing
   );
 };
 
@@ -40,7 +50,16 @@ export const buildHomeView = (
   label = 'points',
   currentUser?: UserRecord,
   gifEnabled = true,
-  gifMinPoints = 3
+  gifMinPoints = 3,
+  billing?: {
+    enabled: boolean;
+    status?: SubscriptionStatus;
+    planTier?: PlanTier;
+    billingPeriod?: BillingPeriod;
+    trialEndsAt?: string;
+    upgradeUrl?: string;
+    portalUrl?: string;
+  }
 ) => {
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
@@ -148,6 +167,37 @@ export const buildHomeView = (
         { type: 'button', text: { type: 'plain_text', text: 'Reset Company Values', emoji: true }, action_id: 'settings_reset_values' }
       ] }
     ];
+    if (billing?.enabled) {
+      const billingStatus = billing.status ? billing.status.replace('_', ' ') : 'unknown';
+      const billingText = billing.trialEndsAt
+        ? `*Billing:* ${billingStatus} (trial ends ${billing.trialEndsAt})`
+        : `*Billing:* ${billingStatus}`;
+      const planText = billing.planTier
+        ? `*Plan:* ${billing.planTier.replace(/_/g, ' ')}${billing.billingPeriod ? ` (${billing.billingPeriod})` : ''}`
+        : '*Plan:* unknown';
+      const billingButton: any = {
+        type: 'button',
+        text: { type: 'plain_text', text: 'Manage Subscription', emoji: true },
+        action_id: 'billing_manage_subscription'
+      };
+      if (billing.portalUrl) {
+        billingButton.url = billing.portalUrl;
+      } else if (billing.upgradeUrl) {
+        billingButton.url = billing.upgradeUrl;
+      }
+      contentBlocks.push(
+        { type: 'divider' },
+        { type: 'section', text: { type: 'mrkdwn', text: '*Billing*' } },
+        { type: 'section', text: { type: 'mrkdwn', text: billingText } },
+        { type: 'section', text: { type: 'mrkdwn', text: planText } },
+        {
+          type: 'actions',
+          elements: [
+            billingButton
+          ]
+        }
+      );
+    }
   } else {
     contentBlocks = [
       {

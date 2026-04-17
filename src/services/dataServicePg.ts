@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { IDataService } from './dataServiceInterface';
-import { AppState, WorkspaceInstall } from '../types';
+import { AppState, WorkspaceInstall, SubscriptionRecord } from '../types';
 
 interface UserRecord {
   total: number;
@@ -34,6 +34,10 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
         bot_user_id TEXT,
         bot_token TEXT,
         installed_at TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS workspace_subscriptions (
+        workspace_id TEXT PRIMARY KEY,
+        record JSONB NOT NULL
       );
       CREATE TABLE IF NOT EXISTS config (
         workspace_id TEXT NOT NULL,
@@ -261,6 +265,43 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
         botToken: row.bot_token,
         installedAt: new Date(row.installed_at).toISOString()
       };
+    },
+
+    listWorkspaceInstalls: async () => {
+      await ensureInit();
+      const res = await pool.query(
+        'SELECT id, bot_user_id, bot_token, installed_at FROM workspaces'
+      );
+      return res.rows.map(row => ({
+        workspaceId: row.id,
+        botUserId: row.bot_user_id,
+        botToken: row.bot_token,
+        installedAt: new Date(row.installed_at).toISOString()
+      }));
+    },
+
+    getWorkspaceSubscription: async (workspaceId: string) => {
+      await ensureInit();
+      const workspaceKey = normalizeWorkspaceId(workspaceId);
+      const res = await pool.query(
+        'SELECT record FROM workspace_subscriptions WHERE workspace_id=$1',
+        [workspaceKey]
+      );
+      if (res.rowCount === 0) return null;
+      return res.rows[0].record as SubscriptionRecord;
+    },
+
+    upsertWorkspaceSubscription: async (subscription: SubscriptionRecord) => {
+      await ensureInit();
+      const workspaceKey = normalizeWorkspaceId(subscription.workspaceId);
+      const record = { ...subscription, workspaceId: workspaceKey };
+      await pool.query(
+        `INSERT INTO workspace_subscriptions(workspace_id, record)
+         VALUES($1, $2)
+         ON CONFLICT(workspace_id)
+         DO UPDATE SET record=$2`,
+        [workspaceKey, record]
+      );
     }
   };
   return service;

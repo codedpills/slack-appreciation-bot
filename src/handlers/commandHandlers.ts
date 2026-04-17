@@ -5,12 +5,21 @@ import { loadState, publishHomeView } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
 import { CommandRouter } from '../services/commandRouter';
 import { RedemptionService } from '../services/redemptionService';
+import { SubscriptionService } from '../services/subscriptionService';
+
+const buildBillingMessage = (upgradeUrl?: string) => {
+  if (upgradeUrl) {
+    return `This workspace needs an active subscription to use this feature. Subscribe here: ${upgradeUrl}`;
+  }
+  return 'This workspace needs an active subscription to use this feature.';
+};
 
 export function registerCommandHandlers(
   app: App,
   dataService: IDataService,
   commandService: CommandService,
-  adminCacheService: AdminCacheService
+  adminCacheService: AdminCacheService,
+  subscriptionService: SubscriptionService
 ) {
   const router = new CommandRouter(commandService);
   const redemptionService = new RedemptionService(dataService, commandService);
@@ -19,6 +28,11 @@ export function registerCommandHandlers(
     await ack();
     const { text, user_id } = command;
     const workspaceId = command.team_id || 'default';
+    const access = await subscriptionService.checkAccess(workspaceId);
+    if (!access.allowed) {
+      await respond({ text: buildBillingMessage(access.upgradeUrl), response_type: 'ephemeral' });
+      return;
+    }
     const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const result = await router.handlePoints(text, user_id, workspaceId, client);
@@ -35,6 +49,11 @@ export function registerCommandHandlers(
     await ack();
     const { text, user_id } = command;
     const workspaceId = command.team_id || 'default';
+    const access = await subscriptionService.checkAccess(workspaceId);
+    if (!access.allowed) {
+      await respond({ text: buildBillingMessage(access.upgradeUrl), response_type: 'ephemeral' });
+      return;
+    }
     const adminUsers = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, adminUsers);
     if (!text.trim()) {
@@ -55,6 +74,11 @@ export function registerCommandHandlers(
     await ack();
     const userId = body.user.id;
     const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const access = await subscriptionService.checkAccess(workspaceId);
+    if (!access.allowed) {
+      await client.chat.postMessage({ channel: userId, text: buildBillingMessage(access.upgradeUrl) });
+      return;
+    }
     const selected = view.state.values.reward_select.reward_selection.selected_option;
     if (!selected) {
       await client.chat.postMessage({ channel: userId, text: 'No selection made' });

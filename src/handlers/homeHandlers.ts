@@ -4,12 +4,14 @@ import { CommandService } from '../services/commandService';
 import { AdminCacheService } from '../services/adminCacheService';
 import { StateLoader } from '../services/stateLoader';
 import { HomeViewService } from '../services/homeViewService';
+import { SubscriptionService } from '../services/subscriptionService';
 
 export function registerHomeHandlers(
   app: App,
   dataService: IDataService,
   commandService: CommandService,
-  adminCacheService: AdminCacheService
+  adminCacheService: AdminCacheService,
+  subscriptionService: SubscriptionService
 ) {
   const stateLoader = new StateLoader(dataService);
   const homeViewService = new HomeViewService();
@@ -22,6 +24,17 @@ export function registerHomeHandlers(
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
+    let billing;
+    if (isAdmin && subscriptionService.isBillingEnabled()) {
+      await subscriptionService.ensureTrial(workspaceId);
+      const subscription = await dataService.getWorkspaceSubscription(workspaceId);
+      billing = {
+        enabled: true,
+        upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
+        portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
+        ...(subscription ?? {})
+      };
+    }
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -31,7 +44,8 @@ export function registerHomeHandlers(
         rewards,
         config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin,
-        currentUser
+        currentUser,
+        billing
       })
     });
   });
@@ -46,6 +60,17 @@ export function registerHomeHandlers(
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
+    let billing;
+    if (isAdmin && subscriptionService.isBillingEnabled()) {
+      await subscriptionService.ensureTrial(workspaceId);
+      const subscription = await dataService.getWorkspaceSubscription(workspaceId);
+      billing = {
+        enabled: true,
+        upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
+        portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
+        ...(subscription ?? {})
+      };
+    }
     await client.views.publish({
       user_id: userId,
       view: homeViewService.buildHomeView({
@@ -55,7 +80,8 @@ export function registerHomeHandlers(
         rewards,
         config: { values, dailyLimit, label, gifEnabled, gifMinPoints },
         isAdmin,
-        currentUser
+        currentUser,
+        billing
       })
     });
   });

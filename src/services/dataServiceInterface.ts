@@ -1,4 +1,4 @@
-import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall } from '../types';
+import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall, SubscriptionRecord } from '../types';
 
 /**
  * Read-only interface for data access
@@ -38,6 +38,16 @@ export interface IDataReader {
    * Fetch workspace install details
    */
   getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null>;
+
+  /**
+   * List all workspace installs
+   */
+  listWorkspaceInstalls(): Promise<WorkspaceInstall[]>;
+
+  /**
+   * Fetch workspace subscription details
+   */
+  getWorkspaceSubscription(workspaceId: string): Promise<SubscriptionRecord | null>;
 }
 
 /**
@@ -128,6 +138,11 @@ export interface IDataWriter {
    * Store or update workspace install details
    */
   upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void>;
+
+  /**
+   * Store or update workspace subscription details
+   */
+  upsertWorkspaceSubscription(subscription: SubscriptionRecord): Promise<void>;
 }
 
 /**

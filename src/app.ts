@@ -5,6 +5,9 @@ import { createDataService } from './services/dataServicePg';
 import { createRecognitionService } from './services/recognitionService';
 import { createCommandService } from './services/commandService';
 import { AdminCacheService } from './services/adminCacheService';
+import { createSubscriptionService } from './services/subscriptionService';
+import { registerBillingWebhookRoutes } from './services/billingWebhook';
+import { WorkspaceUsageService } from './services/workspaceUsageService';
 import { registerRecognitionHandlers } from './handlers/recognitionHandlers';
 import { registerCommandHandlers } from './handlers/commandHandlers';
 import { registerHomeHandlers } from './handlers/homeHandlers';
@@ -17,6 +20,8 @@ const dataService = createDataService();
 const recognitionService = createRecognitionService(dataService);
 let commandService = createCommandService(dataService, []);
 const adminCacheService = new AdminCacheService();
+const subscriptionService = createSubscriptionService(dataService);
+const workspaceUsageService = new WorkspaceUsageService(dataService, subscriptionService);
 
 const scopes = (process.env.SLACK_SCOPES || '')
   .split(',')
@@ -44,6 +49,12 @@ const decryptToken = (payload: string) => {
   const decipher = crypto.createDecipheriv('aes-256-gcm', deriveKey(tokenEncryptionKey), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+};
+
+const parseNumber = (value: string | undefined, fallback: number) => {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
 };
 
 const receiver = new ExpressReceiver({
@@ -74,6 +85,7 @@ const receiver = new ExpressReceiver({
               botToken: encryptToken(botToken),
               installedAt: new Date().toISOString()
             });
+            await subscriptionService.ensureTrial(workspaceId);
           },
           fetchInstallation: async (installQuery: any) => {
             const workspaceId = installQuery.teamId;
@@ -111,13 +123,15 @@ const app = new App({
   ...(process.env.SLACK_BOT_TOKEN ? { token: process.env.SLACK_BOT_TOKEN } : {})
 });
 
+registerBillingWebhookRoutes(receiver.app, dataService);
+
 app.use(async ({ next }) => {
   await next();
 });
 
-registerRecognitionHandlers(app, recognitionService, dataService, commandService);
-registerHomeHandlers(app, dataService, commandService, adminCacheService);
-registerCommandHandlers(app, dataService, commandService, adminCacheService);
+registerRecognitionHandlers(app, recognitionService, dataService, commandService, subscriptionService);
+registerHomeHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
+registerCommandHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
 registerSettingsHandlers(app, dataService, commandService, adminCacheService);
 
 (async () => {
@@ -133,4 +147,24 @@ registerSettingsHandlers(app, dataService, commandService, adminCacheService);
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.start(port);
   console.log(`⚡️ Slack app is running on port ${port}`);
+
+  if (subscriptionService.isBillingEnabled()) {
+    const refreshDays = parseNumber(process.env.BILLING_REFRESH_DAYS, 7);
+    if (refreshDays > 0) {
+      const refreshMs = refreshDays * 24 * 60 * 60 * 1000;
+      const runRefresh = async () => {
+        try {
+          const installs = await dataService.listWorkspaceInstalls();
+          const tokenByWorkspace = new Map(
+            installs.map(install => [install.workspaceId, decryptToken(install.botToken)])
+          );
+          await workspaceUsageService.refreshAllWorkspaceUserCounts(app.client, tokenByWorkspace);
+        } catch (error) {
+          console.error('Failed to refresh workspace usage:', error);
+        }
+      };
+      await runRefresh();
+      setInterval(runRefresh, refreshMs);
+    }
+  }
 })();

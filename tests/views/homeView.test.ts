@@ -159,6 +159,59 @@ describe('Home View Builder', () => {
     expect(allActions).toContain('settings_reset_values');
   });
 
+  test('shows billing actions for admins when billing is enabled', () => {
+    const view = buildHomeView(
+      users,
+      values,
+      userId,
+      'Settings',
+      [],
+      true,
+      5,
+      'points',
+      undefined,
+      true,
+      3,
+      {
+        enabled: true,
+        status: 'trialing',
+        planTier: 'up_to_25',
+        billingPeriod: 'monthly',
+        upgradeUrl: 'https://example.com/upgrade',
+        portalUrl: 'https://example.com/portal'
+      }
+    );
+    const actionBlocks = view.blocks.filter(b => b.type === 'actions');
+    const allActions = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
+    expect(allActions).toContain('billing_manage_subscription');
+    const billingHeader = view.blocks.find(b => b.text?.text?.includes('*Billing*'));
+    expect(billingHeader).toBeDefined();
+    const billingDetails = view.blocks.find(b => b.text?.text?.includes('*Plan:*'));
+    expect(billingDetails).toBeDefined();
+    const billingAction = actionBlocks.flatMap(b => b.elements).find((el: any) => el.action_id === 'billing_manage_subscription');
+    expect(billingAction.url).toBe('https://example.com/portal');
+  });
+
+  test('hides billing actions from non-admins', () => {
+    const view = buildHomeView(
+      users,
+      values,
+      userId,
+      'Settings',
+      [],
+      false,
+      5,
+      'points',
+      undefined,
+      true,
+      3,
+      { enabled: true, status: 'active', upgradeUrl: 'https://example.com/upgrade' }
+    );
+    const actionBlocks = view.blocks.filter(b => b.type === 'actions');
+    const allActions = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
+    expect(allActions).not.toContain('billing_manage_subscription');
+  });
+
   test('Home section displays custom label correctly', () => {
     const customLabel = 'coins';
     const view = buildHomeView(users, values, userId, 'Home', [], false, 5, customLabel);

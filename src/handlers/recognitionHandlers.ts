@@ -5,12 +5,21 @@ import { CommandService } from '../services/commandService';
 import { publishHomeView, loadState } from '../utils';
 import { GiphyService } from '../services/giphyService';
 import { buildRecognitionBlocks } from '../views/recognition';
+import { SubscriptionService } from '../services/subscriptionService';
+
+const buildBillingMessage = (upgradeUrl?: string) => {
+  if (upgradeUrl) {
+    return `This workspace needs an active subscription to use recognition. Subscribe here: ${upgradeUrl}`;
+  }
+  return 'This workspace needs an active subscription to use recognition.';
+};
 
 export function registerRecognitionHandlers(
   app: App,
   recognitionService: RecognitionService,
   dataService: IDataService,
-  commandService: CommandService
+  commandService: CommandService,
+  subscriptionService: SubscriptionService
 ) {
   const giphyService = new GiphyService(process.env.GIPHY_API_KEY);
 
@@ -21,6 +30,20 @@ export function registerRecognitionHandlers(
     if (!messageEvent.text || !messageEvent.user) return;
 
     const workspaceId = (messageEvent as any).team || (messageEvent as any).team_id;
+    if (workspaceId) {
+      const access = await subscriptionService.checkAccess(workspaceId);
+      if (!access.allowed) {
+        try {
+          await client.chat.postMessage({
+            channel: messageEvent.user,
+            text: buildBillingMessage(access.upgradeUrl)
+          });
+        } catch (error) {
+          console.error('Failed to send billing notice:', error);
+        }
+        return;
+      }
+    }
 
     const recognitions = await recognitionService.processRecognitionsWithGroups(
       messageEvent.text,
