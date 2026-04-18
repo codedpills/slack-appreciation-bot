@@ -176,6 +176,7 @@ describe('Home View Builder', () => {
         enabled: true,
         status: 'trialing',
         planTier: 'up_to_25',
+        requiredPlanTier: '25_to_100',
         billingPeriod: 'monthly',
         upgradeUrl: 'https://example.com/upgrade',
         portalUrl: 'https://example.com/portal'
@@ -188,6 +189,8 @@ describe('Home View Builder', () => {
     expect(billingHeader).toBeDefined();
     const billingDetails = view.blocks.find(b => b.text?.text?.includes('*Plan:*'));
     expect(billingDetails).toBeDefined();
+    const requiredDetails = view.blocks.find(b => b.text?.text?.includes('*Required tier:*'));
+    expect(requiredDetails).toBeDefined();
     const billingAction = actionBlocks.flatMap(b => b.elements).find((el: any) => el.action_id === 'billing_manage_subscription');
     expect(billingAction.url).toBe('https://example.com/portal');
   });

@@ -40,7 +40,7 @@ describe('WorkspaceUsageService', () => {
           workspaceId: 'T1',
           status: 'trialing',
           lastUserCount: 42,
-          planTier: '25_to_100'
+          requiredPlanTier: '25_to_100'
         })
       );
     } finally {
@@ -63,7 +63,8 @@ describe('WorkspaceUsageService', () => {
     await dataService.upsertWorkspaceSubscription({
       workspaceId: 'T1',
       status: 'active',
-      planTier: 'up_to_25'
+      planTier: 'up_to_25',
+      requiredPlanTier: 'up_to_25'
     });
 
     const client = {

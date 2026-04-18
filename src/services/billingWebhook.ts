@@ -50,6 +50,21 @@ const readPlanFromVariant = (variantId?: string) => {
   return mapping.get(variantId);
 };
 
+const computeGracePeriodEndsAt = (currentPeriodEndsAt?: string) => {
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  if (currentPeriodEndsAt) {
+    const currentEnds = new Date(currentPeriodEndsAt).getTime();
+    if (!Number.isNaN(currentEnds)) {
+      const remainingMs = currentEnds - now;
+      if (remainingMs > sevenDaysMs) {
+        return new Date(currentEnds).toISOString();
+      }
+    }
+  }
+  return new Date(now + sevenDaysMs).toISOString();
+};
+
 export const registerBillingWebhookRoutes = (app: any, dataService: IDataService) => {
   const config = getBillingConfig();
   const rawParser = express.text({ type: '*/*' });
@@ -100,16 +115,27 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       }
     }
 
+    const requiredPlanTier = existing?.requiredPlanTier;
+    const isTierMismatch = requiredPlanTier && plan?.planTier &&
+      ['up_to_25', '25_to_100', '100_plus'].indexOf(plan.planTier) <
+        ['up_to_25', '25_to_100', '100_plus'].indexOf(requiredPlanTier);
+    const nextStatus = isTierMismatch ? 'past_due' : status;
+    const gracePeriodEndsAt = isTierMismatch
+      ? computeGracePeriodEndsAt(currentPeriodEndsAt)
+      : existing?.gracePeriodEndsAt;
+
     await dataService.upsertWorkspaceSubscription({
       workspaceId,
-      status,
+      status: nextStatus,
       provider: 'lemonsqueezy',
       providerSubscriptionId: subscriptionId,
       providerCustomerId: customerId,
       planTier: plan?.planTier,
+      requiredPlanTier,
       billingPeriod: plan?.billingPeriod,
       trialEndsAt: nextTrialEndsAt,
       currentPeriodEndsAt,
+      gracePeriodEndsAt,
       updatedAt: new Date().toISOString()
     });
 

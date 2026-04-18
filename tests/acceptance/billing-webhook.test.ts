@@ -216,4 +216,59 @@ describe('Billing webhook', () => {
       await pool.end();
     }
   });
+
+  test('sets past_due when purchased plan is below required tier', async () => {
+    const db = newDb();
+    const { Pool } = db.adapters.createPg();
+    const pool = new Pool();
+    const dataService = createDataService({ pool });
+
+    await dataService.upsertWorkspaceSubscription({
+      workspaceId: 'T1',
+      status: 'active',
+      requiredPlanTier: '100_plus'
+    });
+
+    const receiver = new ExpressReceiver({ signingSecret: 'test' });
+    registerBillingWebhookRoutes(receiver.app, dataService);
+
+    const server = receiver.app.listen(0);
+    try {
+      const payload = {
+        meta: {
+          event_name: 'subscription_updated',
+          custom_data: { workspace_id: 'T1' }
+        },
+        data: {
+          id: 'sub_123',
+          attributes: {
+            status: 'active',
+            customer_id: 'cus_123',
+            variant_id: 'var_monthly_25',
+            trial_ends_at: null,
+            ends_at: null,
+            renews_at: '2026-01-01T00:00:00Z'
+          }
+        }
+      };
+      const body = JSON.stringify(payload);
+      const signature = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+
+      const response = await postJson(
+        server,
+        '/billing/lemonsqueezy/webhook',
+        body,
+        { 'x-signature': signature }
+      );
+
+      expect(response.status).toBe(200);
+
+      const record = await dataService.getWorkspaceSubscription('T1');
+      expect(record?.status).toBe('past_due');
+      expect(record?.requiredPlanTier).toBe('100_plus');
+    } finally {
+      server.close();
+      await pool.end();
+    }
+  });
 });

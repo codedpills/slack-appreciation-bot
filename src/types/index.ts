@@ -54,12 +54,14 @@ export interface SubscriptionRecord {
   workspaceId: string;
   status: SubscriptionStatus;
   planTier?: PlanTier;
+  requiredPlanTier?: PlanTier;
   billingPeriod?: BillingPeriod;
   provider?: string;
   providerCustomerId?: string;
   providerSubscriptionId?: string;
   trialEndsAt?: string;
   currentPeriodEndsAt?: string;
+  gracePeriodEndsAt?: string;
   lastUserCount?: number;
   updatedAt?: string;
 }

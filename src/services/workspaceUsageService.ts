@@ -8,6 +8,21 @@ export const mapUserCountToPlanTier = (userCount: number): PlanTier => {
   return '100_plus';
 };
 
+const computeGracePeriodEndsAt = (currentPeriodEndsAt?: string) => {
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  if (currentPeriodEndsAt) {
+    const currentEnds = new Date(currentPeriodEndsAt).getTime();
+    if (!Number.isNaN(currentEnds)) {
+      const remainingMs = currentEnds - now;
+      if (remainingMs > sevenDaysMs) {
+        return new Date(currentEnds).toISOString();
+      }
+    }
+  }
+  return new Date(now + sevenDaysMs).toISOString();
+};
+
 export class WorkspaceUsageService {
   private dataService: IDataService;
   private subscriptionService: SubscriptionService;
@@ -29,12 +44,22 @@ export class WorkspaceUsageService {
       workspaceId,
       status: 'trialing'
     } as SubscriptionRecord);
-    const previousTier = current.planTier;
+    const previousTier = current.requiredPlanTier;
+    const isTierMismatch = current.planTier &&
+      ['up_to_25', '25_to_100', '100_plus'].indexOf(current.planTier) <
+        ['up_to_25', '25_to_100', '100_plus'].indexOf(planTier);
+    const gracePeriodEndsAt = isTierMismatch
+      ? computeGracePeriodEndsAt(current.currentPeriodEndsAt)
+      : current.gracePeriodEndsAt;
+    const nextStatus = isTierMismatch ? 'past_due' : current.status;
+
     await this.dataService.upsertWorkspaceSubscription({
       ...current,
       workspaceId,
       lastUserCount: userCount,
-      planTier,
+      requiredPlanTier: planTier,
+      gracePeriodEndsAt,
+      status: nextStatus,
       updatedAt: new Date().toISOString()
     });
     if (previousTier && previousTier !== planTier) {

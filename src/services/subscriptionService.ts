@@ -17,6 +17,18 @@ export type AccessCheckResult = {
   subscription?: SubscriptionRecord | null;
 };
 
+const PLAN_TIER_ORDER: Record<string, number> = {
+  up_to_25: 1,
+  '25_to_100': 2,
+  '100_plus': 3
+};
+
+export const isPlanTierSufficient = (planTier?: string, requiredTier?: string) => {
+  if (!requiredTier) return true;
+  if (!planTier) return false;
+  return (PLAN_TIER_ORDER[planTier] || 0) >= (PLAN_TIER_ORDER[requiredTier] || 0);
+};
+
 const parseBoolean = (value?: string) => {
   if (!value) return false;
   return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
@@ -55,6 +67,11 @@ const toIsoDate = (date: Date) => date.toISOString();
 const isTrialActive = (trialEndsAt?: string) => {
   if (!trialEndsAt) return false;
   return new Date(trialEndsAt).getTime() >= Date.now();
+};
+
+const isGraceActive = (graceEndsAt?: string) => {
+  if (!graceEndsAt) return false;
+  return new Date(graceEndsAt).getTime() >= Date.now();
 };
 
 export const getBillingConfig = (): BillingConfig => {
@@ -113,10 +130,14 @@ export class SubscriptionService {
       subscription = await this.dataService.getWorkspaceSubscription(workspaceId);
     }
     const status = subscription?.status;
+    const isSufficientTier = isPlanTierSufficient(subscription?.planTier, subscription?.requiredPlanTier);
     if (status === 'trialing' && isTrialActive(subscription?.trialEndsAt)) {
       return { allowed: true, subscription };
     }
-    if (status === 'active') {
+    if (status === 'active' && (isSufficientTier || isGraceActive(subscription?.gracePeriodEndsAt))) {
+      return { allowed: true, subscription };
+    }
+    if (isGraceActive(subscription?.gracePeriodEndsAt)) {
       return { allowed: true, subscription };
     }
     return {

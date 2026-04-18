@@ -12,8 +12,10 @@ export type ViewContext = {
     enabled: boolean;
     status?: SubscriptionStatus;
     planTier?: PlanTier;
+    requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
     trialEndsAt?: string;
+    gracePeriodEndsAt?: string;
     upgradeUrl?: string;
     portalUrl?: string;
   };
@@ -55,8 +57,10 @@ export const buildHomeView = (
     enabled: boolean;
     status?: SubscriptionStatus;
     planTier?: PlanTier;
+    requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
     trialEndsAt?: string;
+    gracePeriodEndsAt?: string;
     upgradeUrl?: string;
     portalUrl?: string;
   }
@@ -175,6 +179,12 @@ export const buildHomeView = (
       const planText = billing.planTier
         ? `*Plan:* ${billing.planTier.replace(/_/g, ' ')}${billing.billingPeriod ? ` (${billing.billingPeriod})` : ''}`
         : '*Plan:* unknown';
+      const requiredText = billing.requiredPlanTier
+        ? `*Required tier:* ${billing.requiredPlanTier.replace(/_/g, ' ')}`
+        : undefined;
+      const graceText = billing.gracePeriodEndsAt
+        ? `*Grace ends:* ${billing.gracePeriodEndsAt}`
+        : undefined;
       const billingButton: any = {
         type: 'button',
         text: { type: 'plain_text', text: 'Manage Subscription', emoji: true },
@@ -190,6 +200,8 @@ export const buildHomeView = (
         { type: 'section', text: { type: 'mrkdwn', text: '*Billing*' } },
         { type: 'section', text: { type: 'mrkdwn', text: billingText } },
         { type: 'section', text: { type: 'mrkdwn', text: planText } },
+        ...(requiredText ? [{ type: 'section', text: { type: 'mrkdwn', text: requiredText } }] : []),
+        ...(graceText ? [{ type: 'section', text: { type: 'mrkdwn', text: graceText } }] : []),
         {
           type: 'actions',
           elements: [
