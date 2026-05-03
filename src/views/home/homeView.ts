@@ -148,7 +148,7 @@ export const buildHomeView = (
   const shouldShowTrialBanner = typeof trialDaysRemaining === 'number' && trialDaysRemaining > 0;
   const upgradeUrl = billing?.upgradeUrl || billing?.portalUrl;
   const headerText = shouldShowTrialBanner
-    ? `Reecognition that matches your vibe, right inside Slack! 😉\nYour trial ends in ${trialDaysRemaining} days. Upgrade to access to continue enjoying all features.`
+    ? `Reecognition that matches your vibe, right inside Slack! 😉\nYour trial ends in ${trialDaysRemaining} days. Upgrade to continue enjoying all features.`
     : 'Reecognition that matches your vibe, right inside Slack! 😉 ';
   const headerSection = {
     type: 'section',
