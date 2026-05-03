@@ -5,6 +5,10 @@ import { AdminCacheService } from '../services/adminCacheService';
 import { StateLoader } from '../services/stateLoader';
 import { HomeViewService } from '../services/homeViewService';
 import { SubscriptionService } from '../services/subscriptionService';
+import { SubscriptionRecord } from '../types';
+
+type BillingContext = { enabled: boolean; upgradeUrl?: string; portalUrl?: string; installUrl?: string } &
+  Partial<SubscriptionRecord>;
 
 export function registerHomeHandlers(
   app: App,
@@ -24,17 +28,19 @@ export function registerHomeHandlers(
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
-    let billing;
-    if (isAdmin && subscriptionService.isBillingEnabled()) {
+    let billing: BillingContext | undefined;
+    if (subscriptionService.isBillingEnabled()) {
       await subscriptionService.ensureTrial(workspaceId);
       const subscription = await dataService.getWorkspaceSubscription(workspaceId);
       billing = {
         enabled: true,
         upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
-        portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
-        installUrl: subscriptionService.getInstallUrl(),
         ...(subscription ?? {})
       };
+      if (isAdmin) {
+        billing.portalUrl = subscriptionService.getPortalUrl(subscription?.providerCustomerId);
+        billing.installUrl = subscriptionService.getInstallUrl();
+      }
     }
     await client.views.publish({
       user_id: userId,
@@ -61,17 +67,19 @@ export function registerHomeHandlers(
     const isAdmin = commandService.isAdmin(userId, workspaceId);
     const { users, config, rewards, currentUser } = await stateLoader.loadHomeState(userId, workspaceId);
     const { values, dailyLimit, label, gifEnabled, gifMinPoints } = config;
-    let billing;
-    if (isAdmin && subscriptionService.isBillingEnabled()) {
+    let billing: BillingContext | undefined;
+    if (subscriptionService.isBillingEnabled()) {
       await subscriptionService.ensureTrial(workspaceId);
       const subscription = await dataService.getWorkspaceSubscription(workspaceId);
       billing = {
         enabled: true,
         upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
-        portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
-        installUrl: subscriptionService.getInstallUrl(),
         ...(subscription ?? {})
       };
+      if (isAdmin) {
+        billing.portalUrl = subscriptionService.getPortalUrl(subscription?.providerCustomerId);
+        billing.installUrl = subscriptionService.getInstallUrl();
+      }
     }
     await client.views.publish({
       user_id: userId,

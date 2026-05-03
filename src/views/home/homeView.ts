@@ -14,6 +14,7 @@ export type ViewContext = {
     planTier?: PlanTier;
     requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
+    providerSubscriptionId?: string;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
     reauthRequired?: boolean;
@@ -69,6 +70,7 @@ export const buildHomeView = (
     planTier?: PlanTier;
     requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
+    providerSubscriptionId?: string;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
     reauthRequired?: boolean;
@@ -112,6 +114,15 @@ export const buildHomeView = (
     if (lower.includes('monthly') || lower.includes('month')) return 'monthly';
     return undefined;
   };
+
+  const getTrialDaysRemaining = (trialEndsAt?: string) => {
+    if (!trialEndsAt) return undefined;
+    const end = new Date(trialEndsAt).getTime();
+    if (Number.isNaN(end)) return undefined;
+    const remainingMs = end - Date.now();
+    if (remainingMs <= 0) return 0;
+    return Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+  };
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
     .sort((a, b) => b.total - a.total);
@@ -130,9 +141,18 @@ export const buildHomeView = (
     options.push({ text: { type: 'plain_text', text: 'Settings', emoji: true }, value: 'Settings' });
   }
 
+  const isAppTrial = billing?.status === 'trialing' && !billing?.providerSubscriptionId;
+  const trialDaysRemaining = isAppTrial
+    ? getTrialDaysRemaining(billing.trialEndsAt)
+    : undefined;
+  const shouldShowTrialBanner = typeof trialDaysRemaining === 'number' && trialDaysRemaining > 0;
+  const upgradeUrl = billing?.upgradeUrl || billing?.portalUrl;
+  const headerText = shouldShowTrialBanner
+    ? `Reecognition that matches your vibe, right inside Slack! 😉\nYour trial ends in ${trialDaysRemaining} days. Upgrade to access to continue enjoying all features.`
+    : 'Reecognition that matches your vibe, right inside Slack! 😉 ';
   const headerSection = {
     type: 'section',
-    text: { type: 'mrkdwn', text: 'Reecognition that matches your vibe, right inside Slack! 😉 ' },
+    text: { type: 'mrkdwn', text: headerText },
     accessory: {
       type: 'static_select',
       action_id: 'home_section_select',
@@ -144,6 +164,29 @@ export const buildHomeView = (
       }
     }
   };
+  const headerBlocks = [
+    headerSection,
+    ...(shouldShowTrialBanner
+      ? [
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: 'Upgrade', emoji: true },
+                url: upgradeUrl
+              },
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: 'Learn more', emoji: true },
+                url: 'https://reecog.com/#pricing'
+              }
+            ]
+          }
+        ]
+      : []),
+    { type: 'divider' }
+  ];
   let contentBlocks: any[] = [];
   if (selectedSection === 'Recognition Leaderboard') {
     contentBlocks = [
@@ -217,11 +260,11 @@ export const buildHomeView = (
       ] }
     ];
     if (billing?.enabled) {
-      const billingStatus = billing.statusLabel || (billing.status ? billing.status.replace('_', ' ') : 'unknown');
-      const trialEndsText = formatDate(billing.trialEndsAt);
-      const statusText = trialEndsText
-        ? `*Status:* ${billingStatus} (trial ends ${trialEndsText})`
-        : `*Status:* ${billingStatus}`;
+      const baseStatus = billing.statusLabel || (billing.status ? billing.status.replace('_', ' ') : 'unknown');
+      const statusLabel = billing.status === 'trialing' ? 'Free trial' : baseStatus;
+      const statusText = typeof trialDaysRemaining === 'number'
+        ? `*Status:* ${statusLabel} (${trialDaysRemaining} days left)`
+        : `*Status:* ${statusLabel}`;
       const planName = billing.variantName || billing.productName;
       const planText = planName
         ? `*Plan:* ${planName}`
@@ -322,5 +365,8 @@ export const buildHomeView = (
       }
     ];
   }
-  return { type: 'home' as const, blocks: [headerSection, { type: 'divider' }, ...contentBlocks] };
+  return {
+    type: 'home' as const,
+    blocks: [...headerBlocks, ...contentBlocks]
+  };
 };

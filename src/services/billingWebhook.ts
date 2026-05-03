@@ -110,17 +110,9 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
     const customerId = attributes.customer_id;
     const variantId = attributes.variant_id;
     const plan = readPlanFromVariant(variantId);
-    const trialEndsAt = attributes.trial_ends_at || undefined;
-    const currentPeriodEndsAt = attributes.renews_at || attributes.ends_at || undefined;
     const existing = await dataService.getWorkspaceSubscription(workspaceId);
-    let nextTrialEndsAt = trialEndsAt;
-    if (existing?.trialEndsAt) {
-      const existingDate = new Date(existing.trialEndsAt).getTime();
-      const incomingDate = trialEndsAt ? new Date(trialEndsAt).getTime() : NaN;
-      if (!Number.isNaN(existingDate) && !Number.isNaN(incomingDate) && incomingDate > existingDate) {
-        nextTrialEndsAt = existing.trialEndsAt;
-      }
-    }
+    const nextTrialEndsAt = existing?.trialEndsAt;
+    const currentPeriodEndsAt = attributes.renews_at || attributes.ends_at || undefined;
 
     const requiredPlanTier = existing?.requiredPlanTier;
     const isTierMismatch = requiredPlanTier && plan?.planTier &&
@@ -150,7 +142,7 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       productName: attributes.product_name || existing?.productName,
       variantName: attributes.variant_name || existing?.variantName,
       statusLabel: attributes.status_formatted || existing?.statusLabel,
-      trialEndsAt: nextTrialEndsAt || existing?.trialEndsAt,
+      trialEndsAt: nextTrialEndsAt,
       currentPeriodEndsAt: currentPeriodEndsAt || existing?.currentPeriodEndsAt,
       gracePeriodEndsAt,
       lastInvoiceAmount,
