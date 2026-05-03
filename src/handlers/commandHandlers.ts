@@ -93,4 +93,31 @@ export function registerCommandHandlers(
       await client.chat.postMessage({ channel: userId, text: result.message });
     }
   });
+
+  app.action(/redeem_store_.+/, async ({ body, ack, client }) => {
+    await ack();
+    const userId = (body as any).user?.id;
+    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    if (!userId) return;
+    const access = await subscriptionService.checkAccess(workspaceId);
+    if (!access.allowed) {
+      await client.chat.postEphemeral({ channel: userId, user: userId, text: buildBillingMessage(access.upgradeUrl) });
+      return;
+    }
+    const opened = await redemptionService.openRedeemModal(client, userId, (body as any).trigger_id, workspaceId);
+    if (!opened) {
+      await client.chat.postEphemeral({ channel: userId, user: userId, text: 'Could not open redeem modal.' });
+    }
+  });
+
+  app.action('fulfill_reward', async ({ body, ack, client }) => {
+    await ack();
+    const userId = (body as any).user?.id;
+    if (!userId) return;
+    await client.chat.postEphemeral({
+      channel: userId,
+      user: userId,
+      text: 'Thanks! Reward marked as fulfilled.'
+    });
+  });
 }

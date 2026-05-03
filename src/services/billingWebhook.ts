@@ -6,11 +6,15 @@ import { getBillingConfig } from './subscriptionService';
 const express = require('express');
 
 const readWorkspaceId = (payload: any) => {
-  return (
+  const direct =
     payload?.meta?.custom_data?.workspace_id ||
     payload?.data?.attributes?.workspace_id ||
-    payload?.data?.attributes?.custom_data?.workspace_id
-  );
+    payload?.data?.attributes?.custom_data?.workspace_id;
+  if (direct) return direct;
+  const userName = payload?.data?.attributes?.user_name;
+  if (!userName || typeof userName !== 'string') return undefined;
+  const match = userName.match(/\bT[A-Z0-9]+\b/);
+  return match ? match[0] : undefined;
 };
 
 const mapStatus = (payload: any): SubscriptionStatus => {
@@ -25,12 +29,14 @@ const mapStatus = (payload: any): SubscriptionStatus => {
 };
 
 const getRawBody = (req: any) => {
-  if (typeof req.body === 'string') return req.body;
-  if (Buffer.isBuffer(req.body)) return req.body.toString('utf8');
-  return JSON.stringify(req.body ?? {});
+  if (Buffer.isBuffer(req.rawBody)) return req.rawBody;
+  if (typeof req.rawBody === 'string') return Buffer.from(req.rawBody, 'utf8');
+  if (Buffer.isBuffer(req.body)) return req.body;
+  if (typeof req.body === 'string') return Buffer.from(req.body, 'utf8');
+  return Buffer.from(JSON.stringify(req.body ?? {}), 'utf8');
 };
 
-const validateSignature = (secret: string, payload: string, signature: string) => {
+const validateSignature = (secret: string, payload: Buffer, signature: string) => {
   if (!signature) return false;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   if (expected.length !== signature.length) return false;
@@ -67,7 +73,7 @@ const computeGracePeriodEndsAt = (currentPeriodEndsAt?: string) => {
 
 export const registerBillingWebhookRoutes = (app: any, dataService: IDataService) => {
   const config = getBillingConfig();
-  const rawParser = express.text({ type: '*/*' });
+  const rawParser = express.raw({ type: '*/*' });
 
   app.post('/billing/lemonsqueezy/webhook', rawParser, async (req: any, res: any) => {
     if (!config.enabled || config.provider !== 'lemonsqueezy') {
@@ -87,7 +93,7 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
     }
     let payload: any;
     try {
-      payload = JSON.parse(rawBody || '{}');
+      payload = JSON.parse(rawBody.toString('utf8') || '{}');
     } catch {
       res.status(400).send('Invalid payload');
       return;
@@ -98,6 +104,7 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       return;
     }
     const status = mapStatus(payload);
+    const dataType = payload?.data?.type;
     const attributes = payload?.data?.attributes || {};
     const subscriptionId = payload?.data?.id;
     const customerId = attributes.customer_id;
@@ -124,18 +131,31 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       ? computeGracePeriodEndsAt(currentPeriodEndsAt)
       : existing?.gracePeriodEndsAt;
 
+    const isInvoice = dataType === 'subscription-invoices';
+    const lastInvoiceAmount = isInvoice ? attributes.total : existing?.lastInvoiceAmount;
+    const lastInvoiceCurrency = isInvoice ? attributes.currency : existing?.lastInvoiceCurrency;
+    const lastInvoiceAt = isInvoice ? attributes.updated_at || attributes.created_at : existing?.lastInvoiceAt;
+    const resolvedSubscriptionId =
+      (isInvoice ? attributes.subscription_id : subscriptionId) || existing?.providerSubscriptionId;
+
     await dataService.upsertWorkspaceSubscription({
       workspaceId,
       status: nextStatus,
       provider: 'lemonsqueezy',
-      providerSubscriptionId: subscriptionId,
-      providerCustomerId: customerId,
-      planTier: plan?.planTier,
+      providerSubscriptionId: resolvedSubscriptionId,
+      providerCustomerId: customerId || existing?.providerCustomerId,
+      planTier: plan?.planTier || existing?.planTier,
       requiredPlanTier,
-      billingPeriod: plan?.billingPeriod,
-      trialEndsAt: nextTrialEndsAt,
-      currentPeriodEndsAt,
+      billingPeriod: plan?.billingPeriod || existing?.billingPeriod,
+      productName: attributes.product_name || existing?.productName,
+      variantName: attributes.variant_name || existing?.variantName,
+      statusLabel: attributes.status_formatted || existing?.statusLabel,
+      trialEndsAt: nextTrialEndsAt || existing?.trialEndsAt,
+      currentPeriodEndsAt: currentPeriodEndsAt || existing?.currentPeriodEndsAt,
       gracePeriodEndsAt,
+      lastInvoiceAmount,
+      lastInvoiceCurrency,
+      lastInvoiceAt,
       updatedAt: new Date().toISOString()
     });
 

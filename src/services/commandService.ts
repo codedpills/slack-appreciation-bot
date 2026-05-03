@@ -5,11 +5,15 @@ export class CommandService {
   private dataService: IDataService;
   private adminUsers: string[];
   private workspaceAdmins: Map<string, string[]>;
+  private userIdCache: Map<string, { userId: string; cachedAt: number }>;
+  private userCacheTtlMs: number;
   
   constructor(dataService: IDataService, adminUsers: string[] = []) {
     this.dataService = dataService;
     this.adminUsers = adminUsers;
     this.workspaceAdmins = new Map();
+    this.userIdCache = new Map();
+    this.userCacheTtlMs = 60 * 60 * 1000;
   }
 
   setWorkspaceAdmins(workspaceId: string, admins: string[]): void {
@@ -152,7 +156,13 @@ export class CommandService {
     };
   }
 
-  async resolveUserId(client: any, username: string): Promise<string | null> {
+  async resolveUserId(client: any, username: string, workspaceId?: string): Promise<string | null> {
+    const cacheKey = `${workspaceId || 'default'}:${username.toLowerCase()}`;
+    const cached = this.userIdCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && now - cached.cachedAt < this.userCacheTtlMs) {
+      return cached.userId;
+    }
     try {
       const result = await client.users.list();
       if (!result.ok || !result.members) {
@@ -161,7 +171,9 @@ export class CommandService {
       }
 
       const user = result.members.find((member: any) => member.name === username.replace('@', ''));
-      return user ? user.id : null;
+      if (!user) return null;
+      this.userIdCache.set(cacheKey, { userId: user.id, cachedAt: now });
+      return user.id;
     } catch (error) {
       console.error('Error resolving user ID:', error);
       return null;
@@ -177,7 +189,7 @@ export class CommandService {
     let userId = match ? match[1] : null;
 
     if (!userId) {
-      userId = await this.resolveUserId(client, target);
+      userId = await this.resolveUserId(client, target, workspaceId);
       if (!userId || !/^U[A-Z0-9]+$/.test(userId)) {
         console.error(`Invalid user identifier provided: ${target}`);
         return { success: false, message: `Invalid user identifier: ${target}` };

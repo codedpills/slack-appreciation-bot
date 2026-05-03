@@ -251,6 +251,11 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
       );
     },
 
+    deleteWorkspaceInstall: async (workspaceId: string) => {
+      await ensureInit();
+      await pool.query('DELETE FROM workspaces WHERE id=$1', [workspaceId]);
+    },
+
     getWorkspaceInstall: async (workspaceId: string) => {
         await ensureInit();
       const res = await pool.query(

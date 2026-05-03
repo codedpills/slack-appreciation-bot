@@ -27,7 +27,7 @@ export const buildRecognitionBlocks = (
   blocks.push({
     type: 'context',
     elements: [
-      { type: 'mrkdwn', text: `Recognized by <@${recognition.giver}> for: ${recognition.reason}` }
+      { type: 'mrkdwn', text: `Recognized by <@${recognition.giver}>: ${recognition.reason}` }
     ]
   });
 

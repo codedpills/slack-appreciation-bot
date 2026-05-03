@@ -32,6 +32,7 @@ export function registerHomeHandlers(
         enabled: true,
         upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
         portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
+        installUrl: subscriptionService.getInstallUrl(),
         ...(subscription ?? {})
       };
     }
@@ -68,6 +69,7 @@ export function registerHomeHandlers(
         enabled: true,
         upgradeUrl: subscriptionService.getUpgradeUrl(workspaceId),
         portalUrl: subscriptionService.getPortalUrl(subscription?.providerCustomerId),
+        installUrl: subscriptionService.getInstallUrl(),
         ...(subscription ?? {})
       };
     }

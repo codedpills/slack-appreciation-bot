@@ -45,6 +45,7 @@ const buildUpgradeUrl = (baseUrl: string | undefined, workspaceId: string) => {
   try {
     const url = new URL(baseUrl);
     url.searchParams.set('workspace_id', workspaceId);
+    url.searchParams.set('checkout[custom][workspace_id]', workspaceId);
     return url.toString();
   } catch {
     return baseUrl;
@@ -56,6 +57,17 @@ const buildPortalUrl = (baseUrl: string | undefined, customerId?: string) => {
   try {
     const url = new URL(baseUrl);
     url.searchParams.set('customer_id', customerId);
+    return url.toString();
+  } catch {
+    return baseUrl;
+  }
+};
+
+const buildInstallUrl = (baseUrl: string | undefined) => {
+  if (!baseUrl) return undefined;
+  try {
+    const url = new URL(baseUrl);
+    url.pathname = `${url.pathname.replace(/\/$/, '')}/slack/install`;
     return url.toString();
   } catch {
     return baseUrl;
@@ -104,6 +116,10 @@ export class SubscriptionService {
 
   getPortalUrl(customerId?: string) {
     return buildPortalUrl(process.env.BILLING_PORTAL_URL, customerId);
+  }
+
+  getInstallUrl() {
+    return buildInstallUrl(process.env.APP_BASE_URL);
   }
 
   async ensureTrial(workspaceId: string) {

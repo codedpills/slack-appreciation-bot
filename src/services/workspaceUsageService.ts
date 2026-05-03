@@ -2,10 +2,14 @@ import { IDataService } from './dataServiceInterface';
 import { PlanTier, SubscriptionRecord } from '../types';
 import { SubscriptionService } from './subscriptionService';
 
+const upTo25Tier = 'up_to_25';
+const from25To100Tier = '25_to_100';
+const above100Tier = '100_plus';
+
 export const mapUserCountToPlanTier = (userCount: number): PlanTier => {
-  if (userCount <= 25) return 'up_to_25';
-  if (userCount <= 100) return '25_to_100';
-  return '100_plus';
+  if (userCount <= 25) return upTo25Tier;
+  if (userCount <= 100) return from25To100Tier;
+  return above100Tier;
 };
 
 const computeGracePeriodEndsAt = (currentPeriodEndsAt?: string) => {
@@ -34,7 +38,19 @@ export class WorkspaceUsageService {
 
   async refreshWorkspaceUserCount(workspaceId: string, client: any, token?: string) {
     await this.subscriptionService.ensureTrial(workspaceId);
-    const response = await client.team.info({ team: workspaceId, ...(token ? { token } : {}) });
+    let response: any;
+    try {
+      response = await client.team.info({ team: workspaceId, ...(token ? { token } : {}) });
+    } catch (error: any) {
+      if (error?.data?.error === 'missing_scope') {
+        console.warn(
+          `Workspace usage refresh missing scope for ${workspaceId}. ` +
+            `needed=${error?.data?.needed} provided=${error?.data?.provided || 'unknown'}. ` +
+            `Ensure SLACK_SCOPES includes team:read, reinstall the app, and avoid SLACK_BOT_TOKEN when using OAuth installs.`
+        );
+      }
+      throw error;
+    }
     const userCount = response?.team?.num_members;
     if (typeof userCount !== 'number') {
       throw new Error('Failed to determine workspace user count');
@@ -46,8 +62,8 @@ export class WorkspaceUsageService {
     } as SubscriptionRecord);
     const previousTier = current.requiredPlanTier;
     const isTierMismatch = current.planTier &&
-      ['up_to_25', '25_to_100', '100_plus'].indexOf(current.planTier) <
-        ['up_to_25', '25_to_100', '100_plus'].indexOf(planTier);
+      [upTo25Tier, from25To100Tier, above100Tier].indexOf(current.planTier) <
+        [upTo25Tier, from25To100Tier, above100Tier].indexOf(planTier);
     const gracePeriodEndsAt = isTierMismatch
       ? computeGracePeriodEndsAt(current.currentPeriodEndsAt)
       : current.gracePeriodEndsAt;
@@ -60,6 +76,9 @@ export class WorkspaceUsageService {
       requiredPlanTier: planTier,
       gracePeriodEndsAt,
       status: nextStatus,
+      reauthRequired: false,
+      reauthReason: undefined,
+      reauthNeededAt: undefined,
       updatedAt: new Date().toISOString()
     });
     if (previousTier && previousTier !== planTier) {
@@ -73,8 +92,32 @@ export class WorkspaceUsageService {
     const results = [] as Array<{ workspaceId: string; userCount: number; planTier: PlanTier }>;
     for (const install of installs) {
       const token = tokenByWorkspace.get(install.workspaceId);
-      const result = await this.refreshWorkspaceUserCount(install.workspaceId, client, token);
-      results.push({ workspaceId: install.workspaceId, ...result });
+      try {
+        const result = await this.refreshWorkspaceUserCount(install.workspaceId, client, token);
+        results.push({ workspaceId: install.workspaceId, ...result });
+      } catch (error: any) {
+        if (error?.data?.error === 'missing_scope') {
+          const existing = await this.dataService.getWorkspaceSubscription(install.workspaceId);
+          await this.dataService.upsertWorkspaceSubscription({
+            workspaceId: install.workspaceId,
+            status: existing?.status || 'trialing',
+            planTier: existing?.planTier,
+            requiredPlanTier: existing?.requiredPlanTier,
+            billingPeriod: existing?.billingPeriod,
+            provider: existing?.provider,
+            providerCustomerId: existing?.providerCustomerId,
+            providerSubscriptionId: existing?.providerSubscriptionId,
+            trialEndsAt: existing?.trialEndsAt,
+            currentPeriodEndsAt: existing?.currentPeriodEndsAt,
+            gracePeriodEndsAt: existing?.gracePeriodEndsAt,
+            lastUserCount: existing?.lastUserCount,
+            reauthRequired: true,
+            reauthReason: error?.data?.needed ? `missing_scope:${error.data.needed}` : 'missing_scope',
+            reauthNeededAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
     }
     return results;
   }

@@ -367,6 +367,10 @@ export class DataService implements IDataService {
     this.workspaceInstalls[install.workspaceId] = { ...install };
   }
 
+  async deleteWorkspaceInstall(workspaceId: string): Promise<void> {
+    delete this.workspaceInstalls[workspaceId];
+  }
+
   async getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null> {
     return this.workspaceInstalls[workspaceId] ? { ...this.workspaceInstalls[workspaceId] } : null;
   }

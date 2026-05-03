@@ -16,10 +16,17 @@ import { getAdminUsers, joinAllChannels } from './utils';
 
 dotenv.config();
 
+const parseNumber = (value: string | undefined, fallback: number) => {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
 const dataService = createDataService();
 const recognitionService = createRecognitionService(dataService);
 let commandService = createCommandService(dataService, []);
-const adminCacheService = new AdminCacheService();
+const adminCacheMinutes = parseNumber(process.env.ADMIN_CACHE_TTL_MINUTES, 60);
+const adminCacheService = new AdminCacheService(adminCacheMinutes * 60 * 1000);
 const subscriptionService = createSubscriptionService(dataService);
 const workspaceUsageService = new WorkspaceUsageService(dataService, subscriptionService);
 
@@ -51,10 +58,9 @@ const decryptToken = (payload: string) => {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
 };
 
-const parseNumber = (value: string | undefined, fallback: number) => {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? fallback : parsed;
+const isAccountInactiveError = (error: any) => {
+  const slackError = error?.data?.error || error?.error;
+  return slackError === 'account_inactive';
 };
 
 const receiver = new ExpressReceiver({
@@ -123,16 +129,41 @@ const app = new App({
   ...(process.env.SLACK_BOT_TOKEN ? { token: process.env.SLACK_BOT_TOKEN } : {})
 });
 
+if (process.env.SLACK_BOT_TOKEN) {
+  console.log('[Startup] Using SLACK_BOT_TOKEN single-workspace mode. OAuth installs are ignored.');
+} else {
+  console.log('[Startup] Using OAuth install mode (installationStore).');
+}
+
 registerBillingWebhookRoutes(receiver.app, dataService);
 
-app.use(async ({ next }) => {
-  await next();
+app.use(async ({ context, next }) => {
+  try {
+    await next();
+  } catch (error) {
+    if (isAccountInactiveError(error)) {
+      const workspaceId = context.teamId;
+      if (workspaceId) {
+        await dataService.deleteWorkspaceInstall(workspaceId);
+      }
+      console.warn('[Slack] account_inactive - removed install for workspace', workspaceId);
+      return;
+    }
+    throw error;
+  }
 });
 
 registerRecognitionHandlers(app, recognitionService, dataService, commandService, subscriptionService);
 registerHomeHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
 registerCommandHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
 registerSettingsHandlers(app, dataService, commandService, adminCacheService);
+
+app.event('app_uninstalled', async ({ context }) => {
+  const workspaceId = context.teamId;
+  if (!workspaceId) return;
+  await dataService.deleteWorkspaceInstall(workspaceId);
+  console.log('[Slack] app_uninstalled - removed install for workspace', workspaceId);
+});
 
 (async () => {
   if (process.env.SLACK_BOT_TOKEN) {

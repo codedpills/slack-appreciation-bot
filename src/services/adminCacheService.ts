@@ -7,7 +7,7 @@ export class AdminCacheService {
   private cache: Map<string, AdminCacheEntry>;
   private ttlMs: number;
 
-  constructor(ttlMs = 5 * 60 * 1000) {
+  constructor(ttlMs = 60 * 60 * 1000) {
     this.cache = new Map();
     this.ttlMs = ttlMs;
   }

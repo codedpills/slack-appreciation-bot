@@ -16,8 +16,18 @@ export type ViewContext = {
     billingPeriod?: BillingPeriod;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
+    reauthRequired?: boolean;
+    reauthReason?: string;
     upgradeUrl?: string;
     portalUrl?: string;
+    installUrl?: string;
+    productName?: string;
+    variantName?: string;
+    statusLabel?: string;
+    currentPeriodEndsAt?: string;
+    lastInvoiceAmount?: number;
+    lastInvoiceCurrency?: string;
+    lastInvoiceAt?: string;
   };
 };
 
@@ -61,10 +71,47 @@ export const buildHomeView = (
     billingPeriod?: BillingPeriod;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
+    reauthRequired?: boolean;
+    reauthReason?: string;
     upgradeUrl?: string;
     portalUrl?: string;
+    installUrl?: string;
+    productName?: string;
+    variantName?: string;
+    statusLabel?: string;
+    currentPeriodEndsAt?: string;
+    lastInvoiceAmount?: number;
+    lastInvoiceCurrency?: string;
+    lastInvoiceAt?: string;
   }
 ) => {
+  const formatCurrency = (amount?: number, currency?: string) => {
+    if (typeof amount !== 'number' || Number.isNaN(amount)) return undefined;
+    const code = (currency || '').toUpperCase();
+    const value = amount / 100;
+    if (code === 'USD') return `$${value.toFixed(2)}`;
+    if (code) return `${value.toFixed(2)} ${code}`;
+    return value.toFixed(2);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return undefined;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  const inferBillingPeriod = (name?: string) => {
+    if (!name) return undefined;
+    const lower = name.toLowerCase();
+    if (lower.includes('annual') || lower.includes('year')) return 'annual';
+    if (lower.includes('monthly') || lower.includes('month')) return 'monthly';
+    return undefined;
+  };
   const userEntries = Object.entries(users)
     .map(([id, data]) => ({ id, ...data }))
     .sort((a, b) => b.total - a.total);
@@ -85,7 +132,7 @@ export const buildHomeView = (
 
   const headerSection = {
     type: 'section',
-    text: { type: 'mrkdwn', text: 'Welcome. Make work fun again!' },
+    text: { type: 'mrkdwn', text: 'Reecognition that matches your vibe, right inside Slack! 😉 ' },
     accessory: {
       type: 'static_select',
       action_id: 'home_section_select',
@@ -100,8 +147,7 @@ export const buildHomeView = (
   let contentBlocks: any[] = [];
   if (selectedSection === 'Recognition Leaderboard') {
     contentBlocks = [
-      { type: 'section', text: { type: 'mrkdwn', text: '*Top recognized team members this month:*' } },
-      { type: 'divider' },
+      { type: 'section', text: { type: 'mrkdwn', text: '🏆 *Top recognized team members this month:*' } },
       ...userEntries.slice(0, 10).map((entry, index) => ({
         type: 'section',
         text: { type: 'mrkdwn', text: `*${index + 1}.* <@${entry.id}> - *${entry.total}* ${label}` }
@@ -122,10 +168,9 @@ export const buildHomeView = (
   } else if (selectedSection === 'Settings' && isAdmin) {
     contentBlocks = [
       // Settings header
-      { type: 'section', text: { type: 'mrkdwn', text: '*Admin Settings*' } },
-      { type: 'divider' },
+      { type: 'section', text: { type: 'mrkdwn', text: '⚙️ *Admin Settings*' } },
       // Points Label
-      { type: 'section', text: { type: 'mrkdwn', text: `*${label.charAt(0).toUpperCase() + label.slice(1)} Label:* ${label}` } },
+      { type: 'section', text: { type: 'mrkdwn', text: `*Points Label:* ${label}` } },
       { type: 'actions', elements: [
         { type: 'button', text: { type: 'plain_text', text: 'Set Label', emoji: true }, action_id: 'settings_set_label' }
       ] },
@@ -154,7 +199,7 @@ export const buildHomeView = (
       ] },
       { type: 'divider' },
       // Rewards
-      { type: 'section', text: { type: 'mrkdwn', text: `*Rewards:* ${rewards.map(r => `${r.name} (${r.cost})`).join(', ')}` } },
+      { type: 'section', text: { type: 'mrkdwn', text: `*Rewards:* ${rewards.map(r => `${r.name} (${r.cost} ${label})`).join(', ')}` } },
       { type: 'actions', elements: [
         { type: 'button', text: { type: 'plain_text', text: 'Add Reward', emoji: true }, action_id: 'settings_add_reward' },
         { type: 'button', text: { type: 'plain_text', text: 'Remove Reward', emoji: true }, action_id: 'settings_remove_reward' }
@@ -172,24 +217,45 @@ export const buildHomeView = (
       ] }
     ];
     if (billing?.enabled) {
-      const billingStatus = billing.status ? billing.status.replace('_', ' ') : 'unknown';
-      const billingText = billing.trialEndsAt
-        ? `*Billing:* ${billingStatus} (trial ends ${billing.trialEndsAt})`
-        : `*Billing:* ${billingStatus}`;
-      const planText = billing.planTier
-        ? `*Plan:* ${billing.planTier.replace(/_/g, ' ')}${billing.billingPeriod ? ` (${billing.billingPeriod})` : ''}`
-        : '*Plan:* unknown';
+      const billingStatus = billing.statusLabel || (billing.status ? billing.status.replace('_', ' ') : 'unknown');
+      const trialEndsText = formatDate(billing.trialEndsAt);
+      const statusText = trialEndsText
+        ? `*Status:* ${billingStatus} (trial ends ${trialEndsText})`
+        : `*Status:* ${billingStatus}`;
+      const planName = billing.variantName || billing.productName;
+      const planText = planName
+        ? `*Plan:* ${planName}`
+        : billing.planTier
+          ? `*Plan:* ${billing.planTier.replace(/_/g, ' ')}`
+          : '*Plan:* unknown';
+      const effectiveBillingPeriod = billing.billingPeriod || inferBillingPeriod(planName);
+      const amountText = formatCurrency(billing.lastInvoiceAmount, billing.lastInvoiceCurrency);
+      const cycleText = amountText && effectiveBillingPeriod
+        ? `*Billing cycle:* ${amountText} billed every ${effectiveBillingPeriod === 'annual' ? 'year' : 'month'}`
+        : undefined;
+      const renewsDate = formatDate(billing.currentPeriodEndsAt);
+      const renewsText = renewsDate ? `*Renews:* ${renewsDate}` : undefined;
       const requiredText = billing.requiredPlanTier
         ? `*Required tier:* ${billing.requiredPlanTier.replace(/_/g, ' ')}`
         : undefined;
-      const graceText = billing.gracePeriodEndsAt
-        ? `*Grace ends:* ${billing.gracePeriodEndsAt}`
+      const graceEndsText = formatDate(billing.gracePeriodEndsAt);
+      const graceText = graceEndsText ? `*Grace ends:* ${graceEndsText}` : undefined;
+      const reauthText = billing.reauthRequired
+        ? `*Action required:* Reauthorize the app to update billing data${billing.reauthReason ? ` (${billing.reauthReason})` : ''}.`
         : undefined;
       const billingButton: any = {
         type: 'button',
         text: { type: 'plain_text', text: 'Manage Subscription', emoji: true },
         action_id: 'billing_manage_subscription'
       };
+      const reauthButton: any = billing.reauthRequired
+        ? {
+            type: 'button',
+            text: { type: 'plain_text', text: 'Reauthorize App', emoji: true },
+            action_id: 'billing_reauthorize_app',
+            url: billing.installUrl
+          }
+        : undefined;
       if (billing.portalUrl) {
         billingButton.url = billing.portalUrl;
       } else if (billing.upgradeUrl) {
@@ -198,14 +264,18 @@ export const buildHomeView = (
       contentBlocks.push(
         { type: 'divider' },
         { type: 'section', text: { type: 'mrkdwn', text: '*Billing*' } },
-        { type: 'section', text: { type: 'mrkdwn', text: billingText } },
+        { type: 'section', text: { type: 'mrkdwn', text: statusText } },
         { type: 'section', text: { type: 'mrkdwn', text: planText } },
+        ...(cycleText ? [{ type: 'section', text: { type: 'mrkdwn', text: cycleText } }] : []),
+        ...(renewsText ? [{ type: 'section', text: { type: 'mrkdwn', text: renewsText } }] : []),
         ...(requiredText ? [{ type: 'section', text: { type: 'mrkdwn', text: requiredText } }] : []),
         ...(graceText ? [{ type: 'section', text: { type: 'mrkdwn', text: graceText } }] : []),
+        ...(reauthText ? [{ type: 'section', text: { type: 'mrkdwn', text: reauthText } }] : []),
         {
           type: 'actions',
           elements: [
-            billingButton
+            billingButton,
+            ...(reauthButton ? [reauthButton] : [])
           ]
         }
       );
@@ -216,20 +286,20 @@ export const buildHomeView = (
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*Your Stats:*
+        text: `⭐ *Your Stats:*
   • Total ${label.charAt(0).toUpperCase() + label.slice(1)}: *${currentUserData.total}*
   • Leaderboard Position: *${currentUserPosition > -1 ? currentUserPosition + 1 : 'N/A'}*`
       }
       },
       { type: 'divider' },
-      { type: 'section', text: { type: 'mrkdwn', text: `*${label.charAt(0).toUpperCase() + label.slice(1)} by Value:*` } },
+      { type: 'section', text: { type: 'mrkdwn', text: `🪙 *${label.charAt(0).toUpperCase() + label.slice(1)} by Value:*` } },
       { type: 'section', fields: values.map(value => ({ type: 'mrkdwn', text: `*#${value}:* ${currentUserData.byValue[value] || 0} ${label}` })) },
       { type: 'divider' },
       {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*How to recognize teammates:*
+        text: `❓ *How to recognize teammates:*
   Valid examples:
   • \`@username +++ reason #value\`
   • \`@username ++ reason\` _(no tag ⇒ defaults to #general)_
@@ -246,7 +316,7 @@ export const buildHomeView = (
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*How to redeem rewards:*
+        text: `❓ *How to redeem rewards:*
   Use the \`/redeem\` command to spend your ${label} on available rewards.`
       }
       }

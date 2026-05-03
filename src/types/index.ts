@@ -56,12 +56,21 @@ export interface SubscriptionRecord {
   planTier?: PlanTier;
   requiredPlanTier?: PlanTier;
   billingPeriod?: BillingPeriod;
+  productName?: string;
+  variantName?: string;
+  statusLabel?: string;
   provider?: string;
   providerCustomerId?: string;
   providerSubscriptionId?: string;
   trialEndsAt?: string;
   currentPeriodEndsAt?: string;
   gracePeriodEndsAt?: string;
+  lastInvoiceAmount?: number;
+  lastInvoiceCurrency?: string;
+  lastInvoiceAt?: string;
+  reauthRequired?: boolean;
+  reauthReason?: string;
+  reauthNeededAt?: string;
   lastUserCount?: number;
   updatedAt?: string;
 }

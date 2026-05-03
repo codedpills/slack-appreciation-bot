@@ -140,6 +140,11 @@ export interface IDataWriter {
   upsertWorkspaceInstall(install: WorkspaceInstall): Promise<void>;
 
   /**
+   * Remove workspace install details
+   */
+  deleteWorkspaceInstall(workspaceId: string): Promise<void>;
+
+  /**
    * Store or update workspace subscription details
    */
   upsertWorkspaceSubscription(subscription: SubscriptionRecord): Promise<void>;

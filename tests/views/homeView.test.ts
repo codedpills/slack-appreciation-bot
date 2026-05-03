@@ -138,7 +138,7 @@ describe('Home View Builder', () => {
     expect(valuesBlock.text.text).toBe('*Company Values:* integrity, innovation');
     // Rewards block
     const rewardsBlock = blocks.find(b => b.text && b.text.text.includes('*Rewards:*'));
-    expect(rewardsBlock.text.text).toBe('*Rewards:* Coffee Voucher (50), Half-day Off (100)');
+    expect(rewardsBlock.text.text).toBe('*Rewards:* Coffee Voucher (50 points), Half-day Off (100 points)');
     // Presence of action buttons
     const actionIds = blocks.filter(b => b.type === 'actions').flatMap(b => b.elements.map((el: any) => el.action_id));
     expect(actionIds).toEqual(
@@ -179,12 +179,16 @@ describe('Home View Builder', () => {
         requiredPlanTier: '25_to_100',
         billingPeriod: 'monthly',
         upgradeUrl: 'https://example.com/upgrade',
-        portalUrl: 'https://example.com/portal'
+        portalUrl: 'https://example.com/portal',
+        reauthRequired: true,
+        reauthReason: 'missing_scope:team:read',
+        installUrl: 'https://example.com/slack/install'
       }
     );
     const actionBlocks = view.blocks.filter(b => b.type === 'actions');
     const allActions = actionBlocks.flatMap(b => b.elements.map((el: any) => el.action_id));
     expect(allActions).toContain('billing_manage_subscription');
+    expect(allActions).toContain('billing_reauthorize_app');
     const billingHeader = view.blocks.find(b => b.text?.text?.includes('*Billing*'));
     expect(billingHeader).toBeDefined();
     const billingDetails = view.blocks.find(b => b.text?.text?.includes('*Plan:*'));
@@ -193,6 +197,8 @@ describe('Home View Builder', () => {
     expect(requiredDetails).toBeDefined();
     const billingAction = actionBlocks.flatMap(b => b.elements).find((el: any) => el.action_id === 'billing_manage_subscription');
     expect(billingAction.url).toBe('https://example.com/portal');
+    const reauthAction = actionBlocks.flatMap(b => b.elements).find((el: any) => el.action_id === 'billing_reauthorize_app');
+    expect(reauthAction.url).toBe('https://example.com/slack/install');
   });
 
   test('hides billing actions from non-admins', () => {
