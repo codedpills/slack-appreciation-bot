@@ -15,6 +15,8 @@ export type ViewContext = {
     requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
     providerSubscriptionId?: string;
+    providerSubscriptionUrl?: string;
+    providerCustomerId?: string;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
     reauthRequired?: boolean;
@@ -71,6 +73,8 @@ export const buildHomeView = (
     requiredPlanTier?: PlanTier;
     billingPeriod?: BillingPeriod;
     providerSubscriptionId?: string;
+    providerSubscriptionUrl?: string;
+    providerCustomerId?: string;
     trialEndsAt?: string;
     gracePeriodEndsAt?: string;
     reauthRequired?: boolean;
@@ -141,7 +145,13 @@ export const buildHomeView = (
     options.push({ text: { type: 'plain_text', text: 'Settings', emoji: true }, value: 'Settings' });
   }
 
-  const isAppTrial = billing?.status === 'trialing' && !billing?.providerSubscriptionId;
+  const statusLabel = (billing?.statusLabel || '').toLowerCase();
+  const hasPaidSubscription = Boolean(
+    billing?.providerSubscriptionId ||
+    billing?.providerCustomerId ||
+    statusLabel.includes('active')
+  );
+  const isAppTrial = billing?.status === 'trialing' && !hasPaidSubscription;
   const trialDaysRemaining = isAppTrial
     ? getTrialDaysRemaining(billing.trialEndsAt)
     : undefined;
@@ -299,7 +309,9 @@ export const buildHomeView = (
             url: billing.installUrl
           }
         : undefined;
-      if (billing.portalUrl) {
+      if (billing.providerSubscriptionUrl) {
+        billingButton.url = billing.providerSubscriptionUrl;
+      } else if (billing.portalUrl) {
         billingButton.url = billing.portalUrl;
       } else if (billing.upgradeUrl) {
         billingButton.url = billing.upgradeUrl;

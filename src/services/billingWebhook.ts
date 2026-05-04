@@ -113,6 +113,10 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
     const existing = await dataService.getWorkspaceSubscription(workspaceId);
     const nextTrialEndsAt = existing?.trialEndsAt;
     const currentPeriodEndsAt = attributes.renews_at || attributes.ends_at || undefined;
+    const subscriptionUrl =
+      attributes?.urls?.customer_portal ||
+      attributes?.urls?.customer_portal_update_subscription ||
+      existing?.providerSubscriptionUrl;
 
     const requiredPlanTier = existing?.requiredPlanTier;
     const isTierMismatch = requiredPlanTier && plan?.planTier &&
@@ -135,6 +139,7 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       status: nextStatus,
       provider: 'lemonsqueezy',
       providerSubscriptionId: resolvedSubscriptionId,
+      providerSubscriptionUrl: subscriptionUrl,
       providerCustomerId: customerId || existing?.providerCustomerId,
       planTier: plan?.planTier || existing?.planTier,
       requiredPlanTier,

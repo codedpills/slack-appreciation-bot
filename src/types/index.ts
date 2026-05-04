@@ -62,6 +62,7 @@ export interface SubscriptionRecord {
   provider?: string;
   providerCustomerId?: string;
   providerSubscriptionId?: string;
+  providerSubscriptionUrl?: string;
   trialEndsAt?: string;
   currentPeriodEndsAt?: string;
   gracePeriodEndsAt?: string;
