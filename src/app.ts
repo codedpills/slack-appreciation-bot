@@ -77,6 +77,9 @@ const receiver = new ExpressReceiver({
         clientSecret: process.env.SLACK_CLIENT_SECRET,
         stateSecret: process.env.SLACK_STATE_SECRET,
         scopes,
+        installerOptions: {
+          directInstall: true
+        },
         installationStore: {
           storeInstallation: async (installation: any) => {
             const workspaceId = installation.team?.id;
