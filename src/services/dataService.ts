@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall } from '../types';
+import { AppState, Recognition, UserRecord, Reward, WorkspaceInstall, SubscriptionRecord } from '../types';
 import { IDataService } from './dataServiceInterface';
 
 /**
@@ -10,11 +10,13 @@ export class DataService implements IDataService {
   private dataFilePath: string;
   private state: AppState;
   private workspaceInstalls: Record<string, WorkspaceInstall>;
+  private workspaceSubscriptions: Record<string, SubscriptionRecord>;
 
   constructor(dataFilePath: string) {
     this.dataFilePath = dataFilePath;
     this.state = this.loadInitialState();
     this.workspaceInstalls = {};
+    this.workspaceSubscriptions = {};
   }
 
   /**
@@ -373,6 +375,20 @@ export class DataService implements IDataService {
 
   async getWorkspaceInstall(workspaceId: string): Promise<WorkspaceInstall | null> {
     return this.workspaceInstalls[workspaceId] ? { ...this.workspaceInstalls[workspaceId] } : null;
+  }
+
+  async listWorkspaceInstalls(): Promise<WorkspaceInstall[]> {
+    return Object.values(this.workspaceInstalls).map(install => ({ ...install }));
+  }
+
+  async getWorkspaceSubscription(workspaceId: string): Promise<SubscriptionRecord | null> {
+    return this.workspaceSubscriptions[workspaceId]
+      ? { ...this.workspaceSubscriptions[workspaceId] }
+      : null;
+  }
+
+  async upsertWorkspaceSubscription(subscription: SubscriptionRecord): Promise<void> {
+    this.workspaceSubscriptions[subscription.workspaceId] = { ...subscription };
   }
 }
 
