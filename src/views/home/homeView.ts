@@ -137,13 +137,15 @@ export const buildHomeView = (
 
   // Header with dropdown select
   const options: any[] = [
-    { text: { type: 'plain_text', text: 'Home', emoji: true }, value: 'Home' },
-    { text: { type: 'plain_text', text: 'Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' },
-    { text: { type: 'plain_text', text: 'Goodies store', emoji: true }, value: 'Goodies store' }
+    { text: { type: 'plain_text', text: '🏠 Home', emoji: true }, value: 'Home' },
+    { text: { type: 'plain_text', text: '🏆 Recognition Leaderboard', emoji: true }, value: 'Recognition Leaderboard' },
+    { text: { type: 'plain_text', text: '🛍️ Goodies store', emoji: true }, value: 'Goodies store' }
   ];
   if (isAdmin) {
-    options.push({ text: { type: 'plain_text', text: 'Settings', emoji: true }, value: 'Settings' });
+    options.push({ text: { type: 'plain_text', text: '⚙️ Settings', emoji: true }, value: 'Settings' });
   }
+
+  const initialOption = options.find(opt => opt.value === selectedSection) || options[0];
 
   const statusLabel = (billing?.statusLabel || '').toLowerCase();
   const hasPaidSubscription = Boolean(
@@ -168,10 +170,7 @@ export const buildHomeView = (
       action_id: 'home_section_select',
       placeholder: { type: 'plain_text', text: 'Select Section', emoji: true },
       options,
-      initial_option: {
-        text: { type: 'plain_text', text: selectedSection, emoji: true },
-        value: selectedSection
-      }
+      initial_option: initialOption
     }
   };
   const headerBlocks = [
@@ -183,12 +182,12 @@ export const buildHomeView = (
             elements: [
               {
                 type: 'button',
-                text: { type: 'plain_text', text: 'Upgrade', emoji: true },
+                text: { type: 'plain_text', text: ' 🚀 Upgrade', emoji: true },
                 url: upgradeUrl
               },
               {
                 type: 'button',
-                text: { type: 'plain_text', text: 'Learn more', emoji: true },
+                text: { type: 'plain_text', text: '🌐 Learn more', emoji: true },
                 url: 'https://reecog.com/#pricing'
               }
             ]
@@ -213,7 +212,7 @@ export const buildHomeView = (
       text: { type: 'mrkdwn', text: `*${reward.name}* - ${reward.cost} ${label}` },
       accessory: {
         type: 'button',
-        text: { type: 'plain_text', text: 'Redeem', emoji: true },
+        text: { type: 'plain_text', text: '🎁 Redeem', emoji: true },
         action_id: `redeem_store_${reward.name}`,
         value: reward.name
       }
@@ -225,48 +224,48 @@ export const buildHomeView = (
       // Points Label
       { type: 'section', text: { type: 'mrkdwn', text: `*Points Label:* ${label}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Set Label', emoji: true }, action_id: 'settings_set_label' }
+        { type: 'button', text: { type: 'plain_text', text: '❇️ Set Label', emoji: true }, action_id: 'settings_set_label' }
       ] },
       { type: 'divider' },
       // Daily Limit
       { type: 'section', text: { type: 'mrkdwn', text: `*Daily Limit:* ${dailyLimit}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' }
+        { type: 'button', text: { type: 'plain_text', text: '❇️ Set Daily Limit', emoji: true }, action_id: 'settings_set_daily_limit' }
       ] },
       { type: 'divider' },
       // GIF Settings
       { type: 'section', text: { type: 'mrkdwn', text: `*Recognition GIFs:* ${gifEnabled ? 'Enabled' : 'Disabled'}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: gifEnabled ? 'Disable GIFs' : 'Enable GIFs', emoji: true }, action_id: 'settings_toggle_gif' }
+        { type: 'button', text: { type: 'plain_text', text: gifEnabled ? '❌ Disable GIFs' : '✅ Enable GIFs', emoji: true }, action_id: 'settings_toggle_gif' }
       ] },
       { type: 'section', text: { type: 'mrkdwn', text: `*GIF Minimum Points:* ${gifMinPoints}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Set GIF Minimum', emoji: true }, action_id: 'settings_set_gif_min_points' }
+        { type: 'button', text: { type: 'plain_text', text: '❇️ Set GIF Minimum', emoji: true }, action_id: 'settings_set_gif_min_points' }
       ] },
       { type: 'divider' },
       // Company Values
       { type: 'section', text: { type: 'mrkdwn', text: `*Company Values:* ${values.join(', ')}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Add Value', emoji: true }, action_id: 'settings_add_value' },
-        { type: 'button', text: { type: 'plain_text', text: 'Remove Value', emoji: true }, action_id: 'settings_remove_value' }
+        { type: 'button', text: { type: 'plain_text', text: '➕ Add Value', emoji: true }, action_id: 'settings_add_value' },
+        { type: 'button', text: { type: 'plain_text', text: '➖ Remove Value', emoji: true }, action_id: 'settings_remove_value' }
       ] },
       { type: 'divider' },
       // Rewards
       { type: 'section', text: { type: 'mrkdwn', text: `*Rewards:* ${rewards.map(r => `${r.name} (${r.cost} ${label})`).join(', ')}` } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Add Reward', emoji: true }, action_id: 'settings_add_reward' },
-        { type: 'button', text: { type: 'plain_text', text: 'Remove Reward', emoji: true }, action_id: 'settings_remove_reward' }
+        { type: 'button', text: { type: 'plain_text', text: '➕ Add Reward', emoji: true }, action_id: 'settings_add_reward' },
+        { type: 'button', text: { type: 'plain_text', text: '➖   Remove Reward', emoji: true }, action_id: 'settings_remove_reward' }
       ] },
       { type: 'divider' },
       // Reset options
       { type: 'section', text: { type: 'mrkdwn', text: '*Reset Options:*' } },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Reset User Points', emoji: true }, action_id: 'settings_reset_user' },
-        { type: 'button', text: { type: 'plain_text', text: 'Reset All Points', emoji: true }, action_id: 'settings_reset_all' }
+        { type: 'button', text: { type: 'plain_text', text: '🔁 Reset User Points', emoji: true }, action_id: 'settings_reset_user' },
+        { type: 'button', text: { type: 'plain_text', text: '🔁 Reset All Points', emoji: true }, action_id: 'settings_reset_all' }
       ] },
       { type: 'actions', elements: [
-        { type: 'button', text: { type: 'plain_text', text: 'Reset Rewards', emoji: true }, action_id: 'settings_reset_rewards' },
-        { type: 'button', text: { type: 'plain_text', text: 'Reset Company Values', emoji: true }, action_id: 'settings_reset_values' }
+        { type: 'button', text: { type: 'plain_text', text: '🔁 Reset Rewards', emoji: true }, action_id: 'settings_reset_rewards' },
+        { type: 'button', text: { type: 'plain_text', text: '🔁 Reset Company Values', emoji: true }, action_id: 'settings_reset_values' }
       ] }
     ];
     if (billing?.enabled) {
@@ -298,13 +297,13 @@ export const buildHomeView = (
         : undefined;
       const billingButton: any = {
         type: 'button',
-        text: { type: 'plain_text', text: 'Manage Subscription', emoji: true },
+        text: { type: 'plain_text', text: '💳 Manage Subscription', emoji: true },
         action_id: 'billing_manage_subscription'
       };
       const reauthButton: any = billing.reauthRequired
         ? {
             type: 'button',
-            text: { type: 'plain_text', text: 'Reauthorize App', emoji: true },
+            text: { type: 'plain_text', text: '🔄 Reauthorize App', emoji: true },
             action_id: 'billing_reauthorize_app',
             url: billing.installUrl
           }
