@@ -137,6 +137,10 @@ if (process.env.SLACK_BOT_TOKEN) {
 
 registerBillingWebhookRoutes(receiver.app, dataService);
 
+receiver.app.get('/health', (_req: any, res: any) => {
+  res.status(200).send('ok');
+});
+
 app.use(async ({ context, next }) => {
   try {
     await next();
