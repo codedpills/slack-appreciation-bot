@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { IDataService } from './dataServiceInterface';
 import { AppState, WorkspaceInstall, SubscriptionRecord } from '../types';
+import { logger } from '../logger';
 
 interface UserRecord {
   total: number;
@@ -17,7 +18,9 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     ? options.pool
     : new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined
+        ssl: process.env.DATABASE_SSL === 'true'
+          ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }
+          : undefined
       });
   const defaults: AppState['config'] = {
     dailyLimit: 10,
@@ -53,13 +56,16 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
       );
     `)
     .catch(error => {
-      console.error('Failed to initialize database schema:', error);
+      logger.error({ error }, 'Failed to initialize database schema');
       throw error;
     });
 
   const normalizeWorkspaceId = (workspaceId?: string) => {
     const normalized = workspaceId?.trim();
-    return normalized && normalized.length > 0 ? normalized : 'default';
+    if (!normalized || normalized.length === 0) {
+      throw new Error('workspaceId is required - cannot operate without workspace context');
+    }
+    return normalized;
   };
 
   const ensureInit = async () => {
@@ -192,22 +198,48 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
       const workspaceKey = normalizeWorkspaceId(workspaceId);
       const { giver, receiver, value, points } = recog;
       const today = new Date().toISOString().split('T')[0];
-      // giver side
-      const giverRec = await service.getUserRecord(giver, workspaceKey);
-      if (giverRec.lastReset !== today) { giverRec.dailyGiven = 0; giverRec.lastReset = today; }
-      giverRec.dailyGiven += points;
-      await pool.query(
-        'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3) ON CONFLICT(workspace_id,user_id) DO UPDATE SET record=$3',
-        [workspaceKey, giver, giverRec]
-      );
-      // receiver side
-      const recvRec = await service.getUserRecord(receiver, workspaceKey);
-      recvRec.total += points;
-      recvRec.byValue[value] = (recvRec.byValue[value] || 0) + points;
-      await pool.query(
-        'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3) ON CONFLICT(workspace_id,user_id) DO UPDATE SET record=$3',
-        [workspaceKey, receiver, recvRec]
-      );
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // giver side
+        const giverRes = await client.query(
+          'SELECT record FROM users WHERE workspace_id=$1 AND user_id=$2 FOR UPDATE',
+          [workspaceKey, giver]
+        );
+        const giverRec = giverRes.rowCount === 0
+          ? { total: 0, byValue: {}, dailyGiven: 0, lastReset: today }
+          : giverRes.rows[0].record;
+        if (giverRec.lastReset !== today) { giverRec.dailyGiven = 0; giverRec.lastReset = today; }
+        giverRec.dailyGiven += points;
+        await client.query(
+          'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3) ON CONFLICT(workspace_id,user_id) DO UPDATE SET record=$3',
+          [workspaceKey, giver, giverRec]
+        );
+
+        // receiver side
+        const recvRes = await client.query(
+          'SELECT record FROM users WHERE workspace_id=$1 AND user_id=$2 FOR UPDATE',
+          [workspaceKey, receiver]
+        );
+        const recvRec = recvRes.rowCount === 0
+          ? { total: 0, byValue: {}, dailyGiven: 0, lastReset: today }
+          : recvRes.rows[0].record;
+        recvRec.total += points;
+        recvRec.byValue[value] = (recvRec.byValue[value] || 0) + points;
+        await client.query(
+          'INSERT INTO users(workspace_id,user_id,record) VALUES($1,$2,$3) ON CONFLICT(workspace_id,user_id) DO UPDATE SET record=$3',
+          [workspaceKey, receiver, recvRec]
+        );
+
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     canGivePoints: async (userId, pts, workspaceId) => {
@@ -307,6 +339,41 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
          DO UPDATE SET record=$2`,
         [workspaceKey, record]
       );
+    },
+
+    deleteAllWorkspaceData: async (workspaceId: string) => {
+      await ensureInit();
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM users WHERE workspace_id=$1', [workspaceId]);
+        await client.query('DELETE FROM config WHERE workspace_id=$1', [workspaceId]);
+        await client.query('DELETE FROM workspace_subscriptions WHERE workspace_id=$1', [workspaceId]);
+        await client.query('DELETE FROM workspaces WHERE id=$1', [workspaceId]);
+        await client.query('DELETE FROM audit_log WHERE workspace_id=$1', [workspaceId]);
+        await client.query('COMMIT');
+        logger.info({ workspaceId }, 'All workspace data deleted');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error({ error, workspaceId }, 'Failed to delete workspace data');
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    deleteUserData: async (userId: string, workspaceId: string) => {
+      await ensureInit();
+      const workspaceKey = normalizeWorkspaceId(workspaceId);
+      await pool.query(
+        'DELETE FROM users WHERE workspace_id=$1 AND user_id=$2',
+        [workspaceKey, userId]
+      );
+      logger.info({ userId, workspaceId: workspaceKey }, 'User data deleted');
+    },
+
+    close: async () => {
+      await pool.end();
     }
   };
   return service;

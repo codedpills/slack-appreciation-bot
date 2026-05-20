@@ -1,4 +1,5 @@
 import { GiphyService } from '../../src/services/giphyService';
+import { logger } from '../../src/logger';
 
 jest.mock('@giphy/js-fetch-api', () => ({
   GiphyFetch: jest.fn()
@@ -27,7 +28,7 @@ describe('GiphyService', () => {
     const { GiphyFetch } = require('@giphy/js-fetch-api');
     GiphyFetch.mockImplementation(() => ({ search }));
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
 
     const service = new GiphyService('test-key');
     const url = await service.getGifUrl('celebration');

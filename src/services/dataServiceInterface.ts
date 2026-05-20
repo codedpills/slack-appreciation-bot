@@ -148,6 +148,21 @@ export interface IDataWriter {
    * Store or update workspace subscription details
    */
   upsertWorkspaceSubscription(subscription: SubscriptionRecord): Promise<void>;
+
+  /**
+   * Delete ALL data for a workspace (GDPR: full purge on uninstall)
+   */
+  deleteAllWorkspaceData(workspaceId: string): Promise<void>;
+
+  /**
+   * Delete a specific user's data from a workspace (GDPR: right to be forgotten)
+   */
+  deleteUserData(userId: string, workspaceId: string): Promise<void>;
+
+  /**
+   * Close the underlying connection pool
+   */
+  close(): Promise<void>;
 }
 
 /**

@@ -329,6 +329,44 @@ export class CommandService {
     await this.dataService.setGifMinPoints(minPoints, workspaceId);
     return { success: true, message: `GIF minimum points set to ${minPoints}.` };
   }
+
+  /**
+   * Delete requesting user's data (GDPR: right to be forgotten)
+   */
+  async deleteUserData(userId: string, workspaceId?: string): Promise<CommandResult> {
+    if (!workspaceId) {
+      return { success: false, message: 'Could not determine workspace context.' };
+    }
+    await this.dataService.deleteUserData(userId, workspaceId);
+    return {
+      success: true,
+      message: 'Your data has been permanently deleted from this workspace. This cannot be undone.'
+    };
+  }
+
+  /**
+   * Export requesting user's data (GDPR: data portability)
+   */
+  async exportUserData(userId: string, workspaceId?: string): Promise<CommandResult> {
+    if (!workspaceId) {
+      return { success: false, message: 'Could not determine workspace context.' };
+    }
+    const record = await this.dataService.getUserRecord(userId, workspaceId);
+    const config = await this.dataService.getConfig(workspaceId);
+    const exportData = {
+      userId,
+      workspaceId,
+      pointsBalance: record.total,
+      pointsByValue: record.byValue,
+      dailyGivenToday: record.dailyGiven,
+      label: config.label,
+      exportedAt: new Date().toISOString()
+    };
+    return {
+      success: true,
+      message: `Here is your data export:\n\`\`\`${JSON.stringify(exportData, null, 2)}\`\`\``
+    };
+  }
 }
 
 export const createCommandService = (

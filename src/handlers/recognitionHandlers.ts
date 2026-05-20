@@ -6,6 +6,7 @@ import { publishHomeView, loadState } from '../utils';
 import { GiphyService } from '../services/giphyService';
 import { buildRecognitionBlocks } from '../views/recognition';
 import { SubscriptionService } from '../services/subscriptionService';
+import { logger } from '../logger';
 
 const buildBillingMessage = (upgradeUrl?: string) => {
   if (upgradeUrl) {
@@ -39,7 +40,7 @@ export function registerRecognitionHandlers(
             text: buildBillingMessage(access.upgradeUrl)
           });
         } catch (error) {
-          console.error('Failed to send billing notice:', error);
+          logger.error({ error }, 'Failed to send billing notice');
         }
         return;
       }
@@ -79,7 +80,7 @@ export function registerRecognitionHandlers(
         await publishHomeView(client, recognitions[0].receiver, dataService, commandService, workspaceId);
         await publishHomeView(client, recognitions[0].giver, dataService, commandService, workspaceId);
       } catch (error) {
-        console.error('Error publishing home view:', error);
+        logger.error({ error }, 'Error publishing home view');
       }
     }
   });

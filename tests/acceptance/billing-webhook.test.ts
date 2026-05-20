@@ -3,7 +3,7 @@ import { ExpressReceiver } from '@slack/bolt';
 import crypto from 'crypto';
 import http from 'http';
 import { createDataService } from '../../src/services/dataServicePg';
-import { registerBillingWebhookRoutes } from '../../src/services/billingWebhook';
+import { registerBillingWebhookRoutes, _resetProcessedEvents } from '../../src/services/billingWebhook';
 
 const postJson = (
   server: http.Server,
@@ -47,6 +47,7 @@ describe('Billing webhook', () => {
   const webhookSecret = 'whsec-test';
 
   beforeEach(() => {
+    _resetProcessedEvents();
     process.env.BILLING_ENABLED = 'true';
     process.env.BILLING_WEBHOOK_SECRET = webhookSecret;
     process.env.BILLING_PLAN_UP_TO_25_MONTHLY = 'var_monthly_25';

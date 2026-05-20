@@ -1,11 +1,12 @@
 import { App } from '@slack/bolt';
 import { IDataService } from '../services/dataServiceInterface';
 import { CommandService } from '../services/commandService';
-import { loadState, publishHomeView } from '../utils';
+import { extractWorkspaceId, loadState, publishHomeView } from '../utils';
 import { AdminCacheService } from '../services/adminCacheService';
 import { CommandRouter } from '../services/commandRouter';
 import { RedemptionService } from '../services/redemptionService';
 import { SubscriptionService } from '../services/subscriptionService';
+import { AuditLogService } from '../services/auditLogService';
 
 const buildBillingMessage = (upgradeUrl?: string) => {
   if (upgradeUrl) {
@@ -19,7 +20,8 @@ export function registerCommandHandlers(
   dataService: IDataService,
   commandService: CommandService,
   adminCacheService: AdminCacheService,
-  subscriptionService: SubscriptionService
+  subscriptionService: SubscriptionService,
+  auditLogService: AuditLogService
 ) {
   const router = new CommandRouter(commandService);
   const redemptionService = new RedemptionService(dataService, commandService);
@@ -27,7 +29,7 @@ export function registerCommandHandlers(
   app.command('/points', async ({ command, ack, respond, client }) => {
     await ack();
     const { text, user_id } = command;
-    const workspaceId = command.team_id || 'default';
+    const workspaceId = extractWorkspaceId(command);
     const access = await subscriptionService.checkAccess(workspaceId);
     if (!access.allowed) {
       await respond({ text: buildBillingMessage(access.upgradeUrl), response_type: 'ephemeral' });
@@ -38,6 +40,16 @@ export function registerCommandHandlers(
     const result = await router.handlePoints(text, user_id, workspaceId, client);
     await respond({ text: result.message, response_type: 'ephemeral' });
     if (result.success) {
+      // Audit admin-level commands
+      const subCmd = text.trim().split(/\s+/)[0]?.toLowerCase();
+      if (['config', 'reward', 'reset'].includes(subCmd)) {
+        await auditLogService.log({
+          workspaceId,
+          actorId: user_id,
+          action: `points.${subCmd}`,
+          details: { text }
+        });
+      }
       const users = await dataService.getAllUsers(workspaceId);
       for (const uid of Object.keys(users)) {
         try { await publishHomeView(client, uid, dataService, commandService, workspaceId); } catch {}
@@ -48,7 +60,7 @@ export function registerCommandHandlers(
   app.command('/redeem', async ({ command, ack, respond, client }) => {
     await ack();
     const { text, user_id } = command;
-    const workspaceId = command.team_id || 'default';
+    const workspaceId = extractWorkspaceId(command);
     const access = await subscriptionService.checkAccess(workspaceId);
     if (!access.allowed) {
       await respond({ text: buildBillingMessage(access.upgradeUrl), response_type: 'ephemeral' });
@@ -73,7 +85,7 @@ export function registerCommandHandlers(
   app.view('redeem_modal_submission', async ({ ack, body, view, client }) => {
     await ack();
     const userId = body.user.id;
-    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const workspaceId = extractWorkspaceId(body);
     const access = await subscriptionService.checkAccess(workspaceId);
     if (!access.allowed) {
       await client.chat.postMessage({ channel: userId, text: buildBillingMessage(access.upgradeUrl) });
@@ -97,7 +109,7 @@ export function registerCommandHandlers(
   app.action(/redeem_store_.+/, async ({ body, ack, client }) => {
     await ack();
     const userId = (body as any).user?.id;
-    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const workspaceId = extractWorkspaceId(body);
     if (!userId) return;
     const access = await subscriptionService.checkAccess(workspaceId);
     if (!access.allowed) {

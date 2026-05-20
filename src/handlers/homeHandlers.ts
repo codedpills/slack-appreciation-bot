@@ -5,6 +5,7 @@ import { AdminCacheService } from '../services/adminCacheService';
 import { StateLoader } from '../services/stateLoader';
 import { HomeViewService } from '../services/homeViewService';
 import { SubscriptionService } from '../services/subscriptionService';
+import { extractWorkspaceId } from '../utils';
 import { SubscriptionRecord } from '../types';
 
 type BillingContext = { enabled: boolean; upgradeUrl?: string; portalUrl?: string; installUrl?: string } &
@@ -22,7 +23,7 @@ export function registerHomeHandlers(
 
   app.event('app_home_opened', async ({ event, client }) => {
     const userId = (event as any).user;
-    const workspaceId = (event as any).team || (event as any).team_id || 'default';
+    const workspaceId = (event as any).team || (event as any).team_id;
     const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);
@@ -61,7 +62,7 @@ export function registerHomeHandlers(
     await ack();
     const selectedSection = (action as any).selected_option.value;
     const userId = (body as any).user.id;
-    const workspaceId = (body as any).team?.id || (body as any).team_id || 'default';
+    const workspaceId = extractWorkspaceId(body);
     const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);

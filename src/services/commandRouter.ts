@@ -69,8 +69,12 @@ export class CommandRouter {
           return { success: false, message: 'Please specify a user. Example: /points reset @user' };
         }
         return this.commandService.resetPoints(userId, args[1], client, workspaceId);
+      case 'delete-my-data':
+        return this.commandService.deleteUserData(userId, workspaceId);
+      case 'export':
+        return this.commandService.exportUserData(userId, workspaceId);
       default:
-        return { success: false, message: 'Invalid command. Available: config, reward, reset' };
+        return { success: false, message: 'Invalid command. Available: config, reward, reset, delete-my-data, export' };
     }
   }
 }

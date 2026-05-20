@@ -91,4 +91,45 @@ describe('RecognitionPipeline', () => {
 
     expect(recognitions).toEqual([]);
   });
+
+  test('supports hyphenated and underscored value tags', async () => {
+    const config: AppConfig = {
+      dailyLimit: 5,
+      values: ['work-life-balance', 'team_spirit'],
+      rewards: [],
+      label: 'points',
+      gifEnabled: true,
+      gifMinPoints: 3
+    };
+
+    const dataService = {
+      getConfig: jest.fn().mockResolvedValue(config)
+    } as any;
+
+    const groupResolver = {
+      resolveGroupMembers: jest.fn().mockResolvedValue([])
+    };
+
+    const pipeline = new RecognitionPipeline(dataService, groupResolver);
+
+    const text1 = '<@USER123> +++ for work and play #work-life-balance';
+    const recs1 = await pipeline.parseRecognitionsWithGroups(text1, 'GIVER1', {}, 'T1');
+    expect(recs1).toHaveLength(1);
+    expect(recs1[0]).toEqual(expect.objectContaining({
+      receiver: 'USER123',
+      points: 3,
+      value: 'work-life-balance',
+      reason: 'for work and play'
+    }));
+
+    const text2 = '<@USER456> ++ awesome collaboration #team_spirit';
+    const recs2 = await pipeline.parseRecognitionsWithGroups(text2, 'GIVER1', {}, 'T1');
+    expect(recs2).toHaveLength(1);
+    expect(recs2[0]).toEqual(expect.objectContaining({
+      receiver: 'USER456',
+      points: 2,
+      value: 'team_spirit',
+      reason: 'awesome collaboration'
+    }));
+  });
 });

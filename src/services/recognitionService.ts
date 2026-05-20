@@ -24,7 +24,7 @@ export class RecognitionService {
    */
   async parseRecognition(text: string, giverId: string, workspaceId?: string): Promise<Recognition | null> {
     // Removed debug logs and redundant comments for tidiness
-    const regex = /<@([A-Z0-9]+)>\s*(\+{1,})\s*(.*?)(?:\s*#(\w+))?$/i;
+    const regex = /<@([A-Z0-9]+)>\s*(\+{1,})\s*(.*?)(?:\s*#([\w-]+))?$/i;
     const match = text.match(regex);
 
     if (!match) return null;
@@ -58,7 +58,7 @@ export class RecognitionService {
 
   async parseRecognitions(text: string, giverId: string, workspaceId?: string): Promise<Recognition[]> {
     // match one or more user mentions, plus count, reason, optional #value, up to next mention or end
-    const regex = /((?:<@[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#(\w+))?(?=\s*(?:<@)|$)/gi;
+    const regex = /((?:<@[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#([\w-]+))?(?=\s*(?:<@)|$)/gi;
     const matches = [...text.matchAll(regex)];
 
     const recognitions: Recognition[] = [];

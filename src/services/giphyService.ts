@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 
 export class GiphyService {
@@ -9,7 +10,7 @@ export class GiphyService {
 
   async getGifUrl(query: string): Promise<string | null> {
     if (!this.gf) {
-      console.warn('GiphyService missing API key');
+      logger.warn('GiphyService missing API key');
       return null;
     }
 
@@ -18,7 +19,7 @@ export class GiphyService {
       const first = result.data?.[0]?.images?.fixed_height?.url;
       return first ?? null;
     } catch (error) {
-      console.warn('GiphyService failed to fetch GIF', error);
+      logger.warn({ error }, 'GiphyService failed to fetch GIF');
       return null;
     }
   }

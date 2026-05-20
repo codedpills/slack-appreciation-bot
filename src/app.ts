@@ -1,6 +1,7 @@
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { createDataService } from './services/dataServicePg';
 import { createRecognitionService } from './services/recognitionService';
 import { createCommandService } from './services/commandService';
@@ -8,19 +9,17 @@ import { AdminCacheService } from './services/adminCacheService';
 import { createSubscriptionService } from './services/subscriptionService';
 import { registerBillingWebhookRoutes } from './services/billingWebhook';
 import { WorkspaceUsageService } from './services/workspaceUsageService';
+import { AuditLogService } from './services/auditLogService';
 import { registerRecognitionHandlers } from './handlers/recognitionHandlers';
 import { registerCommandHandlers } from './handlers/commandHandlers';
 import { registerHomeHandlers } from './handlers/homeHandlers';
 import { registerSettingsHandlers } from './handlers/settingsHandlers';
 import { getAdminUsers, joinAllChannels } from './utils';
+import { validateConfig, parseNumber } from './config';
+import { logger } from './logger';
 
-dotenv.config();
-
-const parseNumber = (value: string | undefined, fallback: number) => {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? fallback : parsed;
-};
+// Validate required environment variables before anything else
+validateConfig();
 
 const dataService = createDataService();
 const recognitionService = createRecognitionService(dataService);
@@ -29,6 +28,7 @@ const adminCacheMinutes = parseNumber(process.env.ADMIN_CACHE_TTL_MINUTES, 60);
 const adminCacheService = new AdminCacheService(adminCacheMinutes * 60 * 1000);
 const subscriptionService = createSubscriptionService(dataService);
 const workspaceUsageService = new WorkspaceUsageService(dataService, subscriptionService);
+const auditLogService = new AuditLogService();
 
 const scopes = (process.env.SLACK_SCOPES || '')
   .split(',')
@@ -38,7 +38,9 @@ const scopes = (process.env.SLACK_SCOPES || '')
 const tokenEncryptionKey = process.env.SLACK_INSTALL_ENCRYPTION_KEY;
 const deriveKey = (secret: string) => crypto.createHash('sha256').update(secret).digest();
 const encryptToken = (token: string) => {
-  if (!tokenEncryptionKey) return token;
+  if (!tokenEncryptionKey) {
+    throw new Error('SLACK_INSTALL_ENCRYPTION_KEY is required for token encryption');
+  }
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', deriveKey(tokenEncryptionKey), iv);
   const encrypted = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
@@ -46,10 +48,14 @@ const encryptToken = (token: string) => {
   return `enc:${iv.toString('base64')}:${encrypted.toString('base64')}:${tag.toString('base64')}`;
 };
 const decryptToken = (payload: string) => {
-  if (!tokenEncryptionKey) return payload;
+  if (!tokenEncryptionKey) {
+    throw new Error('SLACK_INSTALL_ENCRYPTION_KEY is required for token decryption');
+  }
   if (!payload.startsWith('enc:')) return payload;
   const parts = payload.split(':');
-  if (parts.length !== 4) return payload;
+  if (parts.length !== 4) {
+    throw new Error('Malformed encrypted token payload');
+  }
   const iv = Buffer.from(parts[1], 'base64');
   const encrypted = Buffer.from(parts[2], 'base64');
   const tag = Buffer.from(parts[3], 'base64');
@@ -95,6 +101,13 @@ const receiver = new ExpressReceiver({
               installedAt: new Date().toISOString()
             });
             await subscriptionService.ensureTrial(workspaceId);
+
+            // Auto-join all public channels on install for easier onboarding
+            const { WebClient } = await import('@slack/web-api');
+            const installClient = new WebClient(botToken);
+            joinAllChannels(installClient).catch(err =>
+              logger.warn({ err, workspaceId }, 'Non-blocking: failed to auto-join channels on install')
+            );
           },
           fetchInstallation: async (installQuery: any) => {
             const workspaceId = installQuery.teamId;
@@ -133,15 +146,28 @@ const app = new App({
 });
 
 if (process.env.SLACK_BOT_TOKEN) {
-  console.log('[Startup] Using SLACK_BOT_TOKEN single-workspace mode. OAuth installs are ignored.');
+  logger.info('Using SLACK_BOT_TOKEN single-workspace mode. OAuth installs are ignored.');
 } else {
-  console.log('[Startup] Using OAuth install mode (installationStore).');
+  logger.info('Using OAuth install mode (installationStore).');
 }
+
+// Security headers
+receiver.app.use(helmet());
+
+// Rate limiting on billing webhook endpoint
+const billingLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  message: 'Too many requests',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+receiver.app.use('/billing', billingLimiter);
 
 registerBillingWebhookRoutes(receiver.app, dataService);
 
 receiver.app.get('/health', (_req: any, res: any) => {
-  res.status(200).send('ok');
+  res.status(200).json({ status: 'ok' });
 });
 
 app.use(async ({ context, next }) => {
@@ -153,7 +179,7 @@ app.use(async ({ context, next }) => {
       if (workspaceId) {
         await dataService.deleteWorkspaceInstall(workspaceId);
       }
-      console.warn('[Slack] account_inactive - removed install for workspace', workspaceId);
+      logger.warn({ workspaceId }, 'account_inactive - removed install');
       return;
     }
     throw error;
@@ -162,14 +188,15 @@ app.use(async ({ context, next }) => {
 
 registerRecognitionHandlers(app, recognitionService, dataService, commandService, subscriptionService);
 registerHomeHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
-registerCommandHandlers(app, dataService, commandService, adminCacheService, subscriptionService);
-registerSettingsHandlers(app, dataService, commandService, adminCacheService);
+registerCommandHandlers(app, dataService, commandService, adminCacheService, subscriptionService, auditLogService);
+registerSettingsHandlers(app, dataService, commandService, adminCacheService, auditLogService);
 
 app.event('app_uninstalled', async ({ context }) => {
   const workspaceId = context.teamId;
   if (!workspaceId) return;
-  await dataService.deleteWorkspaceInstall(workspaceId);
-  console.log('[Slack] app_uninstalled - removed install for workspace', workspaceId);
+  // Full data purge on uninstall (GDPR compliance)
+  await dataService.deleteAllWorkspaceData(workspaceId);
+  logger.info({ workspaceId }, 'app_uninstalled - purged all workspace data');
 });
 
 (async () => {
@@ -184,7 +211,7 @@ app.event('app_uninstalled', async ({ context }) => {
 
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.start(port);
-  console.log(`⚡️ Slack app is running on port ${port}`);
+  logger.info({ port }, 'Slack app is running');
 
   if (subscriptionService.isBillingEnabled()) {
     const refreshDays = parseNumber(process.env.BILLING_REFRESH_DAYS, 7);
@@ -198,11 +225,25 @@ app.event('app_uninstalled', async ({ context }) => {
           );
           await workspaceUsageService.refreshAllWorkspaceUserCounts(app.client, tokenByWorkspace);
         } catch (error) {
-          console.error('Failed to refresh workspace usage:', error);
+          logger.error({ error }, 'Failed to refresh workspace usage');
         }
       };
       await runRefresh();
       setInterval(runRefresh, refreshMs);
     }
   }
+
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    logger.info({ signal }, 'Received shutdown signal, draining...');
+    try {
+      await app.stop();
+      await dataService.close();
+    } catch (err) {
+      logger.error({ err }, 'Error during shutdown');
+    }
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 })();

@@ -390,6 +390,23 @@ export class DataService implements IDataService {
   async upsertWorkspaceSubscription(subscription: SubscriptionRecord): Promise<void> {
     this.workspaceSubscriptions[subscription.workspaceId] = { ...subscription };
   }
+
+  async deleteAllWorkspaceData(workspaceId: string): Promise<void> {
+    delete this.workspaceInstalls[workspaceId];
+    delete this.workspaceSubscriptions[workspaceId];
+    // Clear users for this workspace (file-based service stores them flat)
+    this.state.users = {};
+    await this.saveData();
+  }
+
+  async deleteUserData(userId: string, _workspaceId: string): Promise<void> {
+    delete this.state.users[userId];
+    await this.saveData();
+  }
+
+  async close(): Promise<void> {
+    await this.saveData();
+  }
 }
 
 export const createDataService = (dataFilePath: string): IDataService => {

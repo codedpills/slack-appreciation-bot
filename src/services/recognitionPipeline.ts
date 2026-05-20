@@ -20,7 +20,7 @@ export class RecognitionPipeline {
     client: any,
     workspaceId?: string
   ): Promise<Recognition[]> {
-    const regex = /((?:<@[A-Z0-9]+>|<!subteam\^[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#(\w+))?(?=\s*(?:<@|<!subteam\^)|$)/gi;
+    const regex = /((?:<@[A-Z0-9]+>|<!subteam\^[A-Z0-9]+>)+)\s*(\+{1,})\s*([^<#]+?)(?:#([\w-]+))?(?=\s*(?:<@|<!subteam\^)|$)/gi;
     const matches = [...text.matchAll(regex)];
 
     if (matches.length === 0) {

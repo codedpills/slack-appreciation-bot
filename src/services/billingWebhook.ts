@@ -2,8 +2,25 @@ import crypto from 'crypto';
 import { IDataService } from './dataServiceInterface';
 import { SubscriptionStatus } from '../types';
 import { getBillingConfig } from './subscriptionService';
+import { logger } from '../logger';
 
 const express = require('express');
+
+// Track processed event IDs to prevent replay attacks
+const processedEvents = new Map<string, number>();
+const REPLAY_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+const cleanupProcessedEvents = () => {
+  const now = Date.now();
+  for (const [id, timestamp] of processedEvents) {
+    if (now - timestamp > REPLAY_WINDOW_MS) {
+      processedEvents.delete(id);
+    }
+  }
+};
+
+/** Exposed for testing only */
+export const _resetProcessedEvents = () => processedEvents.clear();
 
 const readWorkspaceId = (payload: any) => {
   const direct =
@@ -98,6 +115,21 @@ export const registerBillingWebhookRoutes = (app: any, dataService: IDataService
       res.status(400).send('Invalid payload');
       return;
     }
+
+    // Replay protection: reject duplicate or stale events
+    const eventName = payload?.meta?.event_name || '';
+    const eventId = payload?.meta?.event_id;
+    const dedupeKey = eventId || `${eventName}:${payload?.data?.id}`;
+    if (dedupeKey) {
+      cleanupProcessedEvents();
+      if (processedEvents.has(dedupeKey)) {
+        logger.warn({ dedupeKey }, 'Duplicate webhook event rejected');
+        res.status(200).send('already processed');
+        return;
+      }
+      processedEvents.set(dedupeKey, Date.now());
+    }
+
     const workspaceId = readWorkspaceId(payload);
     if (!workspaceId) {
       res.status(400).send('Missing workspace id');

@@ -1,0 +1,71 @@
+{
+  "_metadata": {
+    "major_version": 2,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "Appreciation Bot",
+    "description": "Peer-to-peer recognition aligned with your company values. Give points, track progress, and redeem rewards.",
+    "long_description": "Appreciation Bot helps teams build a culture of recognition by enabling peer-to-peer appreciation aligned with company values.\n\nKey Features:\n• Give recognition with @mentions and ++ syntax directly in channels\n• Track points by company value (teamwork, innovation, etc.)\n• Configure custom rewards for point redemption\n• Admin dashboard with daily limits and value management\n• Optional GIF celebrations for high-point recognitions\n• Leaderboard and personal stats on the Home tab\n\nPerfect for remote and hybrid teams looking to boost morale and reinforce company culture.",
+    "background_color": "#4A154B"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": false,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Appreciation Bot",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/points",
+        "description": "Manage recognition points, config, and rewards",
+        "usage_hint": "[config|reward|reset|delete-my-data|export]",
+        "should_escape": false
+      },
+      {
+        "command": "/redeem",
+        "description": "Redeem your points for rewards",
+        "usage_hint": "[reward name]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": [],
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "channels:history",
+        "channels:join",
+        "channels:read",
+        "chat:write",
+        "commands",
+        "groups:history",
+        "groups:read",
+        "im:write",
+        "team:read",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_home_opened",
+        "app_uninstalled",
+        "message.channels",
+        "message.groups"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

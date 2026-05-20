@@ -149,7 +149,7 @@ describe('Admin Commands Acceptance Tests', () => {
 
     const result = await commandService.resetPoints(adminUserId, '@username', {} as any);
     expect(result.success).toBe(true);
-    expect(resolveUserIdSpy).toHaveBeenCalledWith(expect.anything(), '@username');
+    expect(resolveUserIdSpy).toHaveBeenCalledWith(expect.anything(), '@username', undefined);
     expect(resetSpy).toHaveBeenCalledWith('USER789', undefined);
   });
 
