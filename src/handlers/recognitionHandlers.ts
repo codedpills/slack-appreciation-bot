@@ -24,13 +24,13 @@ export function registerRecognitionHandlers(
 ) {
   const giphyService = new GiphyService(process.env.GIPHY_API_KEY);
 
-  app.message(async ({ message, say, client }) => {
+  app.message(async ({ message, say, client, context }) => {
     if (!('text' in message) || !('user' in message) || message.subtype === 'bot_message') return;
 
     const messageEvent = message as GenericMessageEvent;
     if (!messageEvent.text || !messageEvent.user) return;
 
-    const workspaceId = (messageEvent as any).team || (messageEvent as any).team_id;
+    const workspaceId = context.teamId || (messageEvent as any).team || (messageEvent as any).team_id;
     if (workspaceId) {
       const access = await subscriptionService.checkAccess(workspaceId);
       if (!access.allowed) {

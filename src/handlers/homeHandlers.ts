@@ -21,9 +21,9 @@ export function registerHomeHandlers(
   const stateLoader = new StateLoader(dataService);
   const homeViewService = new HomeViewService();
 
-  app.event('app_home_opened', async ({ event, client }) => {
+  app.event('app_home_opened', async ({ event, client, context }) => {
     const userId = (event as any).user;
-    const workspaceId = (event as any).team || (event as any).team_id;
+    const workspaceId = context.teamId || (event as any).team || (event as any).team_id;
     const admins = await adminCacheService.getAdmins(client, workspaceId);
     commandService.setWorkspaceAdmins(workspaceId, admins);
     const isAdmin = commandService.isAdmin(userId, workspaceId);

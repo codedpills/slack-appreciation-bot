@@ -199,6 +199,17 @@ app.event('app_uninstalled', async ({ context }) => {
   logger.info({ workspaceId }, 'app_uninstalled - purged all workspace data');
 });
 
+app.event('channel_created' as any, async ({ event, client }) => {
+  const channelId = (event as any)?.channel?.id;
+  if (channelId) {
+    try {
+      await client.conversations.join({ channel: channelId });
+    } catch (err) {
+      logger.warn({ err, channelId }, 'Failed to auto-join new channel');
+    }
+  }
+});
+
 (async () => {
   if (process.env.SLACK_BOT_TOKEN) {
     const adminUsers = await getAdminUsers(app.client);

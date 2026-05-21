@@ -42,7 +42,12 @@ export async function joinAllChannels(client: any) {
   try {
     let cursor: string | undefined;
     do {
-      const res = await client.conversations.list({ exclude_archived: true, limit: 1000, cursor });
+      const res = await client.conversations.list({
+        exclude_archived: true,
+        types: 'public_channel',
+        limit: 200,
+        cursor
+      });
       if (!res.ok || !res.channels) { logger.error({ error: res.error }, 'Failed to fetch channels'); return; }
       for (const ch of res.channels) {
         if (!ch.is_member) {
