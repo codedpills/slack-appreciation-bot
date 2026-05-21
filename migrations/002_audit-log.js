@@ -7,10 +7,10 @@ exports.up = (pgm) => {
     target_id: { type: 'text' },
     details: { type: 'jsonb' },
     created_at: { type: 'timestamp', default: pgm.func('NOW()') }
-  });
+  }, { ifNotExists: true });
 
-  pgm.createIndex('audit_log', 'workspace_id', { name: 'idx_audit_log_workspace' });
-  pgm.createIndex('audit_log', ['workspace_id', 'actor_id'], { name: 'idx_audit_log_actor' });
+  pgm.createIndex('audit_log', 'workspace_id', { name: 'idx_audit_log_workspace', ifNotExists: true });
+  pgm.createIndex('audit_log', ['workspace_id', 'actor_id'], { name: 'idx_audit_log_actor', ifNotExists: true });
 };
 
 exports.down = (pgm) => {
