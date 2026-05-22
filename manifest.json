@@ -44,6 +44,7 @@
             "bot": [
                 "app_mentions:read",
                 "channels:history",
+                "channels:join",
                 "channels:read",
                 "chat:write",
                 "commands",
@@ -55,11 +56,10 @@
                 "mpim:read",
                 "team:read",
                 "usergroups:read",
-                "users:read",
-                "users:read.email"
+                "users:read"
             ]
         },
-        "pkce_enabled": false
+        "pkce_enabled": true
     },
     "settings": {
         "event_subscriptions": {
@@ -67,6 +67,8 @@
             "bot_events": [
                 "app_home_opened",
                 "app_mention",
+                "app_uninstalled",
+                "channel_created",
                 "message.channels",
                 "message.groups",
                 "message.im",
