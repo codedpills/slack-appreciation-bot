@@ -334,6 +334,34 @@ export const buildHomeView = (
         }
       );
     }
+
+    // Helpful Links (always shown at bottom of Settings)
+    const helpCenterUrl = process.env.HELP_CENTER_URL;
+    const contactUrl = process.env.CONTACT_URL;
+    if (helpCenterUrl || contactUrl) {
+      const linkButtons: any[] = [];
+      if (helpCenterUrl) {
+        linkButtons.push({
+          type: 'button',
+          text: { type: 'plain_text', text: '📖 Help Center', emoji: true },
+          url: helpCenterUrl,
+          action_id: 'link_help_center'
+        });
+      }
+      if (contactUrl) {
+        linkButtons.push({
+          type: 'button',
+          text: { type: 'plain_text', text: '💬 Contact Us', emoji: true },
+          url: contactUrl,
+          action_id: 'link_contact_us'
+        });
+      }
+      contentBlocks.push(
+        { type: 'divider' },
+        { type: 'section', text: { type: 'mrkdwn', text: ':link: *Helpful Links*' } },
+        { type: 'actions', elements: linkButtons }
+      );
+    }
   } else {
     contentBlocks = [
       {

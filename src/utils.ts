@@ -61,6 +61,40 @@ export async function joinAllChannels(client: any) {
   }
 }
 
+export async function sendWelcomeMessage(client: any, userId: string) {
+  const message = [
+    '🎉 *Welcome to Reecog!* Your team is all set to start recognizing great work.',
+    '',
+    '🚀 *Quick Setup Guide:*',
+    '',
+    '✅ *Auto-joined channels* — I\'ve already joined all public channels so your team can start recognizing each other right away!',
+    '',
+    '➕ *Add me to private channels* — Want recognition in a private channel? Just invite me with `/invite @Reecog`',
+    '',
+    '🙌 *How to give recognition:*',
+    '> `@teammate +++ Great job on the presentation! #teamwork`',
+    '> `@alice @bob ++ Thanks for the help #collaboration`',
+    '> More `+` signs = more points!',
+    '',
+    '⚙️ *Admin setup* — Head to the *Home* tab and open *Settings* to:',
+    '• Set your company values (used as hashtags)',
+    '• Configure rewards your team can redeem',
+    '• Adjust daily point limits',
+    '',
+    '💡 *Pro tips:*',
+    '• Use `/points` to check your balance and manage settings',
+    '• Use `/redeem` to claim rewards',
+    '• Recognition works in any channel I\'m in!',
+    '',
+    'Let\'s build a culture of appreciation together! 🌟'
+  ].join('\n');
+
+  await client.chat.postMessage({
+    channel: userId,
+    text: message
+  });
+}
+
 export async function publishHomeView(
   client: any,
   userId: string,

@@ -14,7 +14,7 @@ import { registerRecognitionHandlers } from './handlers/recognitionHandlers';
 import { registerCommandHandlers } from './handlers/commandHandlers';
 import { registerHomeHandlers } from './handlers/homeHandlers';
 import { registerSettingsHandlers } from './handlers/settingsHandlers';
-import { getAdminUsers, joinAllChannels } from './utils';
+import { getAdminUsers, joinAllChannels, sendWelcomeMessage } from './utils';
 import { validateConfig, parseNumber } from './config';
 import { logger } from './logger';
 
@@ -108,6 +108,14 @@ const receiver = new ExpressReceiver({
             joinAllChannels(installClient).catch(err =>
               logger.warn({ err, workspaceId }, 'Non-blocking: failed to auto-join channels on install')
             );
+
+            // Send welcome DM to the installer
+            const installerId = installation.user?.id;
+            if (installerId) {
+              sendWelcomeMessage(installClient, installerId).catch(err =>
+                logger.warn({ err, workspaceId }, 'Non-blocking: failed to send welcome message')
+              );
+            }
           },
           fetchInstallation: async (installQuery: any) => {
             const workspaceId = installQuery.teamId;
