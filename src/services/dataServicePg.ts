@@ -19,7 +19,7 @@ export function createDataService(options?: { pool?: Pool }): IDataService {
     : new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.DATABASE_SSL === 'true'
-          ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }
+          ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true' }
           : undefined
       });
   const defaults: AppState['config'] = {
