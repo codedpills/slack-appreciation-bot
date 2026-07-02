@@ -30,10 +30,30 @@ const subscriptionService = createSubscriptionService(dataService);
 const workspaceUsageService = new WorkspaceUsageService(dataService, subscriptionService);
 const auditLogService = new AuditLogService();
 
-const scopes = (process.env.SLACK_SCOPES || '')
+const requiredOauthScopes = [
+  'app_mentions:read',
+  'channels:history',
+  'channels:join',
+  'channels:read',
+  'chat:write',
+  'commands',
+  'groups:history',
+  'groups:read',
+  'im:history',
+  'im:read',
+  'mpim:history',
+  'mpim:read',
+  'team:read',
+  'usergroups:read',
+  'users:read'
+];
+
+const envScopes = (process.env.SLACK_SCOPES || '')
   .split(',')
   .map(scope => scope.trim())
   .filter(Boolean);
+
+const scopes = Array.from(new Set([...envScopes, ...requiredOauthScopes]));
 
 const tokenEncryptionKey = process.env.SLACK_INSTALL_ENCRYPTION_KEY;
 const deriveKey = (secret: string) => crypto.createHash('sha256').update(secret).digest();
